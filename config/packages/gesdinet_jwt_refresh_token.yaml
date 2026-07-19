@@ -1,0 +1,7 @@
+gesdinet_jwt_refresh_token:
+    refresh_token_class: App\Entity\RefreshToken
+    # 30 jours — cohérent avec une session soignant qui reste connecté toute la journée/semaine.
+    ttl: 2592000
+    ttl_update: true
+    # Rotation du refresh token à chaque utilisation (CDC §6.1 — sécurité des tokens).
+    single_use: true

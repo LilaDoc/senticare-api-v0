@@ -24,6 +24,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Entity'
                 prefix: 'App\Entity'
                 alias: App
+            GesdinetJWTRefreshTokenBundle:
+                type: xml
+                is_bundle: false
+                dir: '%kernel.project_dir%/vendor/gesdinet/jwt-refresh-token-bundle/config/doctrine'
+                prefix: 'Gesdinet\JWTRefreshTokenBundle\Entity'
+                alias: GesdinetJWTRefreshTokenBundle
         controller_resolver:
             auto_mapping: false
 
