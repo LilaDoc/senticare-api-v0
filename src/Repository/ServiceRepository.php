@@ -27,6 +27,16 @@ class ServiceRepository extends ServiceEntityRepository
             ->getResult()
         ;
     }
+    public function findByName(string $nom): array
+    {
+        return $this->createQueryBuilder('s')
+            ->andWhere('s.nom = :nom')
+            ->setParameter('nom', $nom)
+            ->orderBy('s.id', 'ASC')
+            ->getQuery()
+            ->getResult()
+        ;
+    }
     //    /**
     //     * @return Service[] Returns an array of Service objects
     //     */

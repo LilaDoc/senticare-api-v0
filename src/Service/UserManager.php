@@ -40,14 +40,29 @@ class UserManager
         User $createdBy,
         array $services = [],
     ): User {
-        // TODO:
-        // 1. vérifier l'unicité de l'email (UserRepository::findOneBy(['email' => ...]))
-        // 2. générer un mot de passe provisoire aléatoire (ex: random_bytes + base64)
-        // 3. hasher via $this->passwordHasher->hashPassword() — Argon2id (CDC §6.1)
-        // 4. instancier User, setCreatedBy($createdBy), rattacher $services
-        // 5. persister + flush
-        // 6. envoyer le mot de passe provisoire via $this->notificationManager (US-1.2)
-        throw new \RuntimeException('TODO: implement UserManager::create()');
+        if ($this->userRepository->findOneBy(['email' => $email])) {
+            throw new \RuntimeException('Un compte avec cet email existe déjà.');
+        }
+
+        $newUser = new User();
+        $newUser->setEmail($email);
+        $newUser->setNom($nom);
+        $newUser->setPrenom($prenom);
+        $newUser->setRoles([$role->value]);
+        $newUser->setCreatedBy($createdBy);
+
+        foreach ($services as $service) {
+            $newUser->addService($service);
+        }
+
+        $plainPassword = $this->createUserWithGeneratedPassword($newUser);
+
+        $this->entityManager->persist($newUser);
+        $this->entityManager->flush();
+
+        $this->notificationManager->notifyAccountCreated($newUser, $plainPassword);
+
+        return $newUser;
     }
 
     /**
@@ -59,9 +74,24 @@ class UserManager
      */
     public function update(User $user, string $nom, string $prenom, array $services): User
     {
-        // TODO: setNom/setPrenom, remplacer les services (removeService sur les
-        // anciens absents de $services, addService sur les nouveaux), flush.
-        throw new \RuntimeException('TODO: implement UserManager::update()');
+        $user->setNom($nom);
+        $user->setPrenom($prenom);
+
+        foreach ($user->getServices() as $existingService) {
+            if (!in_array($existingService, $services, true)) {
+                $user->removeService($existingService);
+            }
+        }
+
+        foreach ($services as $newService) {
+            if (!$user->getServices()->contains($newService)) {
+                $user->addService($newService);
+            }
+        }
+
+        $this->entityManager->flush();
+
+        return $user;
     }
 
     /**
@@ -69,8 +99,9 @@ class UserManager
      */
     public function deactivate(User $user): void
     {
-        // TODO: $user->setIsActive(false); flush(); journaliser l'action (CDC §6.3).
-        throw new \RuntimeException('TODO: implement UserManager::deactivate()');
+        $user->setIsActive(false);
+
+        $this->entityManager->flush();
     }
 
     /**
@@ -79,8 +110,9 @@ class UserManager
      */
     public function reactivate(User $user): void
     {
-        // TODO: $user->setIsActive(true); flush(); journaliser l'action (CDC §6.3).
-        throw new \RuntimeException('TODO: implement UserManager::reactivate()');
+        $user->setIsActive(true);
+
+        $this->entityManager->flush();
     }
 
     /**
@@ -90,8 +122,7 @@ class UserManager
      */
     public function findByPole(Pole $pole): array
     {
-        // TODO: requête via UserRepository, jointure services -> pole (User n'a pas de FK directe vers Pole).
-        throw new \RuntimeException('TODO: implement UserManager::findByPole()');
+        return $this->userRepository->findByPole($pole);
     }
 
     /**
@@ -101,7 +132,42 @@ class UserManager
      */
     public function findChefsPole(): array
     {
-        // TODO: requête filtrée sur roles contient ROLE_CHEF_POLE.
-        throw new \RuntimeException('TODO: implement UserManager::findChefsPole()');
+        return $this->userRepository->findByRole(RoleEnum::ChefPole);
     }
+    
+    private function generateRandomPassword(int $length = 12): string
+        {
+        $uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // sans I/O pour éviter confusion
+        $lowercase = 'abcdefghijkmnpqrstuvwxyz';
+        $numbers = '23456789'; // sans 0/1
+        $special = '!@#$%^&*-_';
+
+        $all = $uppercase . $lowercase . $numbers . $special;
+
+        // on garantit au moins un caractère de chaque catégorie
+        $password = [
+            $uppercase[random_int(0, strlen($uppercase) - 1)],
+            $lowercase[random_int(0, strlen($lowercase) - 1)],
+            $numbers[random_int(0, strlen($numbers) - 1)],
+            $special[random_int(0, strlen($special) - 1)],
+        ];
+
+        for ($i = count($password); $i < $length; $i++) {
+            $password[] = $all[random_int(0, strlen($all) - 1)];
+        }
+
+        shuffle($password);
+
+        return implode('', $password);
+    }
+
+    public function createUserWithGeneratedPassword(User $user): string
+    {
+        $plainPassword = $this->generateRandomPassword();
+        $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
+        $user->setPassword($hashedPassword);
+
+        return $plainPassword;
+    }
+
 }
