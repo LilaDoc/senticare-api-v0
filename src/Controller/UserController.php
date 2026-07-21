@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Enum\RoleEnum;
+use App\Repository\ServiceRepository;
 use App\Repository\UserRepository;
 use App\Security\Voter\UserVoter;
 use App\Service\UserManager;
@@ -26,15 +28,35 @@ class UserController extends AbstractController
     public function __construct(
         private readonly UserManager $userManager,
         private readonly UserRepository $userRepository,
+        private readonly ServiceRepository $serviceRepository,
     ) {
     }
 
     #[Route('', name: 'users_list', methods: ['GET'])]
     public function list(#[CurrentUser] User $currentUser): JsonResponse
     {
-        // TODO: chef de pôle -> UserManager::findByPole() ; admin -> UserManager::findChefsPole().
-        // Vérifier via $this->isGranted('ROLE_CHEF_POLE') / ('ROLE_ADMIN') lequel des deux appliquer.
-        throw new \RuntimeException('TODO: implement UserController::list()');
+        if ($this->isGranted('ROLE_CHEF_POLE')) {
+            // Convention (docs/ROADMAP.md) : le pôle d'un chef de pôle se déduit
+            // de n'importe lequel de ses propres services (tous dans le même pôle).
+            $firstService = $currentUser->getServices()->first() ?: null;
+            $pole = $firstService?->getPole();
+            $users = $pole ? $this->userManager->findByPole($pole) : [];
+        } elseif ($this->isGranted('ROLE_ADMIN')) {
+            $users = $this->userManager->findChefsPole();
+        } else {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $this->json(array_map(
+            fn (User $user): array => [
+                'id' => (string) $user->getId(),
+                'nom' => $user->getNom(),
+                'prenom' => $user->getPrenom(),
+                'email' => $user->getUserIdentifier(),
+                'isActive' => $user->isActive(),
+            ],
+            $users
+        ));
     }
 
     #[Route('', name: 'users_create', methods: ['POST'])]
@@ -42,38 +64,108 @@ class UserController extends AbstractController
     {
         $this->denyAccessUnlessGranted(UserVoter::CREATE);
 
-        // TODO: décoder payload { email, nom, prenom, role, services[] } ; si $currentUser a
-        // ROLE_CHEF_POLE, le role cible doit être Soignant/Cadre ; si ROLE_ADMIN, ChefPole
-        // uniquement (CDC §3) — à vérifier explicitement, indépendamment du Voter.
-        // Déléguer à UserManager::create(), retourner 201.
-        throw new \RuntimeException('TODO: implement UserController::create()');
+        $data = json_decode($request->getContent(), true);
+        $nom = $data['nom'] ?? null;
+        $prenom = $data['prenom'] ?? null;
+        $email = $data['email'] ?? null;
+        $roleValue = $data['role'] ?? null;
+        $serviceIds = $data['serviceIds'] ?? [];
+
+        if (!$nom || !$prenom || !$email || !$roleValue) {
+            return $this->json(['error' => 'Les champs "nom", "prenom", "email" et "role" sont requis.'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $role = RoleEnum::tryFrom($roleValue);
+
+        if (!$role) {
+            return $this->json(['error' => 'Rôle invalide.'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // CDC §3 : un chef de pôle ne crée que des soignants/cadres, un admin
+        // que des chefs de pôle — vérification indépendante du Voter, qui ne
+        // connaît pas encore le rôle cible demandé dans le payload.
+        if ($this->isGranted('ROLE_ADMIN')) {
+            if (RoleEnum::ChefPole !== $role) {
+                return $this->json(['error' => 'Un administrateur ne peut créer que des comptes chef de pôle.'], JsonResponse::HTTP_FORBIDDEN);
+            }
+        } elseif (!in_array($role, [RoleEnum::Soignant, RoleEnum::Cadre], true)) {
+            return $this->json(['error' => 'Un chef de pôle ne peut créer que des comptes soignant ou cadre.'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        $services = array_map(
+            fn (string $serviceId) => $this->serviceRepository->find($serviceId) ?? throw $this->createNotFoundException(),
+            $serviceIds
+        );
+
+        $user = $this->userManager->create($email, $nom, $prenom, $role, $currentUser, $services);
+
+        return $this->json([
+            'id' => (string) $user->getId(),
+            'nom' => $user->getNom(),
+            'prenom' => $user->getPrenom(),
+            'email' => $user->getUserIdentifier(),
+        ], JsonResponse::HTTP_CREATED);
     }
 
     #[Route('/{id}', name: 'users_update', methods: ['PATCH'])]
     public function update(string $id, Request $request): JsonResponse
     {
-        // TODO: charger $user = $this->userRepository->find($id) ?? 404,
-        // $this->denyAccessUnlessGranted(UserVoter::EDIT, $user),
-        // décoder payload { nom, prenom, serviceIds[] }, résoudre les services,
-        // déléguer à $this->userManager->update().
-        throw new \RuntimeException('TODO: implement UserController::update()');
+        $user = $this->userRepository->find($id) ?? throw $this->createNotFoundException();
+
+        $this->denyAccessUnlessGranted(UserVoter::EDIT, $user);
+
+        $data = json_decode($request->getContent(), true);
+        $nom = $data['nom'] ?? $user->getNom();
+        $prenom = $data['prenom'] ?? $user->getPrenom();
+        $serviceIds = $data['serviceIds'] ?? null;
+
+        // Pas de champ fourni -> on garde les services actuels inchangés.
+        $services = null === $serviceIds
+            ? $user->getServices()->toArray()
+            : array_map(
+                fn (string $serviceId) => $this->serviceRepository->find($serviceId) ?? throw $this->createNotFoundException(),
+                $serviceIds
+            );
+
+        $this->userManager->update($user, $nom, $prenom, $services);
+
+        return $this->json([
+            'id' => (string) $user->getId(),
+            'nom' => $user->getNom(),
+            'prenom' => $user->getPrenom(),
+            'email' => $user->getUserIdentifier(),
+        ]);
     }
 
     #[Route('/{id}/deactivate', name: 'users_deactivate', methods: ['PATCH'])]
     public function deactivate(string $id): JsonResponse
     {
-        // TODO: charger $user = $this->userRepository->find($id) ?? 404,
-        // $this->denyAccessUnlessGranted(UserVoter::DEACTIVATE, $user),
-        // $this->userManager->deactivate($user).
-        throw new \RuntimeException('TODO: implement UserController::deactivate()');
+        $user = $this->userRepository->find($id) ?? throw $this->createNotFoundException();
+
+        $this->denyAccessUnlessGranted(UserVoter::DEACTIVATE, $user);
+
+        $this->userManager->deactivate($user);
+
+        return $this->json([
+            'id' => (string) $user->getId(),
+            'email' => $user->getUserIdentifier(),
+            'isActive' => $user->isActive(),
+        ]);
     }
 
     #[Route('/{id}/reactivate', name: 'users_reactivate', methods: ['PATCH'])]
     public function reactivate(string $id): JsonResponse
     {
-        // TODO: charger $user = $this->userRepository->find($id) ?? 404,
-        // $this->denyAccessUnlessGranted(UserVoter::REACTIVATE, $user),
-        // $this->userManager->reactivate($user).
-        throw new \RuntimeException('TODO: implement UserController::reactivate()');
+        $user = $this->userRepository->find($id) ?? throw $this->createNotFoundException();
+
+        $this->denyAccessUnlessGranted(UserVoter::REACTIVATE, $user);
+
+        $this->userManager->reactivate($user);
+
+        return $this->json([
+            'id' => (string) $user->getId(),
+            'email' => $user->getUserIdentifier(),
+            'isActive' => $user->isActive(),
+        ]);
     }
 }
