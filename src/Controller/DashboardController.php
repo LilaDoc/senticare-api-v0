@@ -26,6 +26,7 @@ class DashboardController extends AbstractController
     #[Route('/stats', name: 'dashboard_stats', methods: ['GET'])]
     public function stats(Request $request, #[CurrentUser] User $user): JsonResponse
     {
+        
         // TODO: extraire les filtres de période depuis la query string,
         // déléguer à StatsManager::aggregate($user, $filters).
         throw new \RuntimeException('TODO: implement DashboardController::stats()');
