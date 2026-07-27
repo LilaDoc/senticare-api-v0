@@ -32,6 +32,7 @@ class DashboardControllerTest extends ApiTestCase
 
     public function testStatsNeverGroupByIndividualDeclarant(): void
     {
+        
         // Règle blameless impérative (CDC §2.1, §4.6) : jamais de classement par soignant.
         // TODO: une fois StatsManager::aggregate() implémenté, vérifier que la clé
         // "parDeclarant" / équivalent n'existe PAS dans la réponse JSON.

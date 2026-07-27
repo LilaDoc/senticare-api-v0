@@ -24,7 +24,6 @@ class DeclarationManagerGraviteTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(\App\Repository\DeclarationRepository::class),
             $this->createStub(\App\Service\NotificationManager::class),
-            $this->createStub(\App\Service\SuggestionRmmManager::class),
         );
     }
 

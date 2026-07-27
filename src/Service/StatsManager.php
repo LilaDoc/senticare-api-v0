@@ -15,6 +15,7 @@ class StatsManager
 {
     public function __construct(
         private readonly DeclarationRepository $declarationRepository,
+        private readonly DeclarationManager $declarationManager,
     ) {
     }
 
@@ -25,9 +26,20 @@ class StatsManager
      */
     public function aggregate(User $requester, array $filters = []): array
     {
-        // TODO: requêtes agrégées (GROUP BY service / type / période) scopées au
-        // périmètre de $requester (cadre: son service ; chef de pôle: son pôle).
-        // Ne JAMAIS grouper par déclarant/soignant (règle blameless — CDC §2.1).
-        throw new \RuntimeException('TODO: implement StatsManager::aggregate()');
+        // Périmètre résolu par DeclarationManager — même règle métier que
+        // search() (UC-06), une seule source de vérité pour "qui voit quoi".
+        $criteria = $this->declarationManager->resolvePerimeterCriteria($requester);
+
+        // Règle blameless impérative (CDC §2.1/§4.6) : les statistiques ne
+        // doivent JAMAIS pouvoir être scopées à un déclarant individuel.
+        // resolvePerimeterCriteria() renvoie ce critère pour un simple
+        // soignant (légitime pour search(), sa propre liste) — mais le
+        // tableau de bord est réservé aux cadres/chefs de pôle (§4.6), donc
+        // ce cas ne doit jamais atteindre l'agrégation.
+        if (array_key_exists('declarant', $criteria)) {
+            throw new \RuntimeException('Les statistiques ne peuvent jamais être scopées à un déclarant individuel (règle blameless, CDC §2.1).');
+        }
+
+        return $this->declarationRepository->aggregate($criteria, $filters);
     }
 }

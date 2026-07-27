@@ -95,6 +95,22 @@ class UserManager
     }
 
     /**
+     * Change son propre mot de passe (US-1.2 — l'utilisateur doit pouvoir
+     * remplacer le mot de passe provisoire reçu à la création). Vérifie
+     * l'ancien mot de passe avant d'appliquer le nouveau, hashé en Argon2id.
+     */
+    public function changePassword(User $user, string $currentPassword, string $newPassword): void
+    {
+        if (!$this->passwordHasher->isPasswordValid($user, $currentPassword)) {
+            throw new \RuntimeException('Mot de passe actuel incorrect.');
+        }
+
+        $user->setPassword($this->passwordHasher->hashPassword($user, $newPassword));
+
+        $this->entityManager->flush();
+    }
+
+    /**
      * Désactive un compte sans le supprimer — traçabilité conservée (CDC §5.1).
      */
     public function deactivate(User $user): void

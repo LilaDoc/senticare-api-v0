@@ -107,6 +107,26 @@ class UserController extends AbstractController
         ], JsonResponse::HTTP_CREATED);
     }
 
+    #[Route('/me/password', name: 'users_change_password', methods: ['PATCH'])]
+    public function changePassword(Request $request, #[CurrentUser] User $currentUser): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $currentPassword = $data['currentPassword'] ?? null;
+        $newPassword = $data['newPassword'] ?? null;
+
+        if (!$currentPassword || !$newPassword) {
+            return $this->json(['error' => 'Les champs "currentPassword" et "newPassword" sont requis.'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $this->userManager->changePassword($currentUser, $currentPassword, $newPassword);
+        } catch (\RuntimeException $e) {
+            return $this->json(['error' => $e->getMessage()], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        return $this->json(['message' => 'Mot de passe modifié avec succès.']);
+    }
+
     #[Route('/{id}', name: 'users_update', methods: ['PATCH'])]
     public function update(string $id, Request $request): JsonResponse
     {

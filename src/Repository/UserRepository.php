@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Pole;
+use App\Entity\Service;
 use App\Entity\User;
 use App\Enum\RoleEnum;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -44,7 +45,24 @@ class UserRepository extends ServiceEntityRepository
             ->getResult()
         ;
     }
-
+    /**
+     * Cadres rattachés à ce service (peut y en avoir plusieurs) — utilisé pour
+     * la notification de soumission (UC-09).
+     *
+     * @return User[]
+     */
+    public function findCadresByService(Service $service): array
+    {
+        return $this->createQueryBuilder('u')
+            ->innerJoin('u.services', 's')
+            ->andWhere('s = :service')
+            ->andWhere('u.roles LIKE :role')
+            ->setParameter('service', $service)
+            ->setParameter('role', '%"ROLE_CADRE"%')
+            ->getQuery()
+            ->getResult()
+        ;
+    }
     /**
      * Comptes ayant le rôle donné. Les rôles sont stockés en JSON (ex:
      * ["ROLE_CHEF_POLE"]) — pas d'opérateur JSON natif portable en DQL, on

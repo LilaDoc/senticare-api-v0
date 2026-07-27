@@ -6,6 +6,7 @@ use App\Entity\Declaration;
 use App\Entity\Service as ServiceEntity;
 use App\Entity\User;
 use App\Enum\GraviteEnum;
+use App\Enum\RoleEnum;
 use App\Enum\StatutEnum;
 use App\Enum\TypeEIEnum;
 use App\Repository\DeclarationRepository;
@@ -20,7 +21,6 @@ class DeclarationManager
         private readonly EntityManagerInterface $entityManager,
         private readonly DeclarationRepository $declarationRepository,
         private readonly NotificationManager $notificationManager,
-        private readonly SuggestionRmmManager $suggestionRmmManager,
     ) {
     }
 
@@ -33,11 +33,35 @@ class DeclarationManager
         TypeEIEnum $typeEI,
         \DateTimeImmutable $dateConstat,
         \DateTimeImmutable $dateSurvenue,
+        bool $deces,
+        bool $pronosticVitalEnJeu,
+        bool $risqueDeficitFonctionnelPermanent,
+        ?GraviteEnum $choixSiNonEIGS = null,
     ): Declaration {
-        // TODO: valider dateConstat <= now (CDC §4.3 — "ne peut pas être dans le futur"),
-        // instancier Declaration (statut = Brouillon par défaut dans le constructeur),
-        // setDeclarant/setService/setTypeEI/setDateConstat/setDateSurvenue, persister, flush.
-        throw new \RuntimeException('TODO: implement DeclarationManager::createDraft()');
+        if ($dateConstat > new \DateTimeImmutable()) {
+            throw new \RuntimeException('La date de constat ne peut pas être dans le futur.');
+        }
+
+        if (!$declarant->getServices()->contains($service)) {
+            throw new \RuntimeException('Ce service n\'est pas autorisé pour ce déclarant.');
+        }
+
+        $gravite = $this->calculerGravite($deces, $pronosticVitalEnJeu, $risqueDeficitFonctionnelPermanent, $choixSiNonEIGS);
+
+        $declaration = new Declaration();
+        $declaration->setDeclarant($declarant);
+        $declaration->setService($service);
+        $declaration->setTypeEI($typeEI);
+        $declaration->setDateConstat($dateConstat);
+        $declaration->setDateSurvenue($dateSurvenue);
+        $declaration->setGravite($gravite);
+        // setStatut(Brouillon) inutile : c'est déjà la valeur par défaut posée
+        // par le constructeur de Declaration.
+
+        $this->entityManager->persist($declaration);
+        $this->entityManager->flush();
+
+        return $declaration;
     }
 
     /**
@@ -68,10 +92,57 @@ class DeclarationManager
      */
     public function updateDraft(Declaration $declaration, array $changes): Declaration
     {
-        // TODO: vérifier que $declaration->getStatut()->estModifiable() est vrai (garde-fou métier,
-        // en plus du contrôle d'accès fait par DeclarationVoter::EDIT en amont),
-        // appliquer les setters concernés depuis $changes, flush.
-        throw new \RuntimeException('TODO: implement DeclarationManager::updateDraft()');
+        // Garde-fou métier : le "qui a le droit" est déjà vérifié par
+        // DeclarationVoter::EDIT dans le contrôleur, avant d'arriver ici. Ici on
+        // vérifie autre chose : "est-ce que cette action a un sens ?" (CDC §4.4 —
+        // seul un brouillon est modifiable, quel que soit l'utilisateur).
+        if (!$declaration->getStatut()->estModifiable()) {
+            throw new \RuntimeException('Cette déclaration n\'est plus modifiable (statut différent de brouillon).');
+        }
+
+        // Champs volontairement exclus : gravite/isEIGS (verrouillés, calculés par
+        // calculerGravite() + Declaration::setGravite() — CDC §4.2) et service
+        // (pré-rempli à la création, non ré-modifiable ici).
+        if (array_key_exists('dateConstat', $changes)) {
+            $declaration->setDateConstat($changes['dateConstat']);
+        }
+        if (array_key_exists('dateSurvenue', $changes)) {
+            $declaration->setDateSurvenue($changes['dateSurvenue']);
+        }
+        if (array_key_exists('lieuDifferent', $changes)) {
+            $declaration->setLieuDifferent($changes['lieuDifferent']);
+        }
+        if (array_key_exists('lieuDifferentDetail', $changes)) {
+            $declaration->setLieuDifferentDetail($changes['lieuDifferentDetail']);
+        }
+        if (array_key_exists('typeEI', $changes)) {
+            $declaration->setTypeEI($changes['typeEI']);
+        }
+        if (array_key_exists('description', $changes)) {
+            $declaration->setDescription($changes['description']);
+        }
+        if (array_key_exists('consequencesAutres', $changes)) {
+            $declaration->setConsequencesAutres($changes['consequencesAutres']);
+        }
+        if (array_key_exists('consequencesAutresDetail', $changes)) {
+            $declaration->setConsequencesAutresDetail($changes['consequencesAutresDetail']);
+        }
+        if (array_key_exists('mesuresImmediatesPatient', $changes)) {
+            $declaration->setMesuresImmediatesPatient($changes['mesuresImmediatesPatient']);
+        }
+        if (array_key_exists('mesuresImmediatesPatientDetail', $changes)) {
+            $declaration->setMesuresImmediatesPatientDetail($changes['mesuresImmediatesPatientDetail']);
+        }
+        if (array_key_exists('mesuresImmediatesProches', $changes)) {
+            $declaration->setMesuresImmediatesProches($changes['mesuresImmediatesProches']);
+        }
+        if (array_key_exists('autresMesures', $changes)) {
+            $declaration->setAutresMesures($changes['autresMesures']);
+        }
+
+        $this->entityManager->flush();
+
+        return $declaration;
     }
 
     /**
@@ -79,36 +150,53 @@ class DeclarationManager
      */
     public function abandon(Declaration $declaration): void
     {
-        // TODO: vérifier que StatutEnum::Abandonnee figure dans
-        // $declaration->getStatut()->transitionsAutorisees(), sinon lever une exception métier.
-        // $declaration->setStatut(StatutEnum::Abandonnee); flush().
-        throw new \RuntimeException('TODO: implement DeclarationManager::abandon()');
+        if (!in_array(StatutEnum::Abandonnee, $declaration->getStatut()->transitionsAutorisees(), true)) {
+            throw new \RuntimeException('Transition non autorisée depuis ce statut.');
+        }
+
+        $declaration->setStatut(StatutEnum::Abandonnee);
+
+        $this->entityManager->flush();
     }
 
     /**
-     * Soumet une déclaration (UC-05) — verrouille le contenu, déclenche la notification
-     * (UC-09) et la génération automatique de la fiche RMM si isEIGS (UC-11, CDC §4.5).
+     * Soumet une déclaration (UC-05) — verrouille le contenu et déclenche la
+     * notification (UC-09). La génération de fiche RMM est hors périmètre V1
+     * (CDC §4.5).
      */
     public function submit(Declaration $declaration): void
     {
-        // TODO:
-        // 1. vérifier la transition Brouillon -> Soumise (StatutEnum::transitionsAutorisees())
-        // 2. $declaration->setStatut(StatutEnum::Soumise) (met aussi à jour submittedAt)
-        // 3. si $declaration->isEIGS() : $this->suggestionRmmManager->generateAuto($declaration)
-        // 4. $this->notificationManager->notifySubmission($declaration)
-        //    -> ne doit JAMAIS bloquer la soumission en cas d'échec d'envoi (US-3.2 / CDC §6.3)
-        // 5. flush()
-        throw new \RuntimeException('TODO: implement DeclarationManager::submit()');
+        if (!in_array(StatutEnum::Soumise, $declaration->getStatut()->transitionsAutorisees(), true)) {
+            throw new \RuntimeException('Transition non autorisée depuis ce statut.');
+        }
+
+        // setStatut(Soumise) met aussi submittedAt à jour automatiquement
+        // (cf. Declaration::setStatut()) — pas besoin de le faire ici.
+        $declaration->setStatut(StatutEnum::Soumise);
+
+        // NotificationManager::notifySubmission() garantit ne jamais lever
+        // d'exception (log interne en cas d'échec) — CDC §6.3 / US-3.2.
+        $this->notificationManager->notifySubmission($declaration);
+
+        $this->entityManager->flush();
     }
 
     /**
      * Change le statut d'une déclaration (cadre / chef de pôle) — en_analyse, cloturee (CDC §4.4).
+     *
+     * Ne gère PAS la transition vers Soumise : c'est le rôle exclusif de submit(),
+     * réservé au déclarant (DeclarationVoter::SUBMIT). Un cadre/chef de pôle qui
+     * passerait StatutEnum::Soumise ici contournerait cette règle de périmètre.
      */
     public function changeStatut(Declaration $declaration, StatutEnum $nouveauStatut): void
     {
-        // TODO: vérifier que $nouveauStatut figure dans
-        // $declaration->getStatut()->transitionsAutorisees(), sinon lever une exception métier.
-        throw new \RuntimeException('TODO: implement DeclarationManager::changeStatut()');
+        if (!in_array($nouveauStatut, $declaration->getStatut()->transitionsAutorisees(), true)) {
+            throw new \RuntimeException('Transition non autorisée depuis ce statut.');
+        }
+
+        $declaration->setStatut($nouveauStatut);
+
+        $this->entityManager->flush();
     }
 
     /**
@@ -120,9 +208,45 @@ class DeclarationManager
      */
     public function search(User $requester, array $filters): array
     {
-        // TODO: filtrage périmètre selon rôle (soignant: ses propres déclarations ;
-        // cadre: son/ses service(s) ; chef de pôle: son pôle), toujours côté serveur
-        // (CDC §6.2 — jamais de filtrage côté client), puis appliquer les $filters.
-        throw new \RuntimeException('TODO: implement DeclarationManager::search()');
+        return $this->declarationRepository->search($this->resolvePerimeterCriteria($requester), $filters);
+    }
+
+    /**
+     * Résout le périmètre d'un superviseur en critères exploitables par le
+     * repository — règle métier partagée par `search()` (UC-06) et
+     * `StatsManager::aggregate()` (CDC §4.6) : "qui a le droit de voir quoi"
+     * ne doit exister qu'à un seul endroit.
+     *
+     * @return array{pole?: ?\App\Entity\Pole, services?: array, declarant?: User}
+     */
+    public function resolvePerimeterCriteria(User $requester): array
+    {
+        if ($this->hasRole($requester, RoleEnum::ChefPole)) {
+            // Convention (docs/ROADMAP.md) : le pôle d'un chef de pôle se déduit
+            // de n'importe lequel de ses propres services.
+            $firstService = $requester->getServices()->first() ?: null;
+
+            return ['pole' => $firstService?->getPole()];
+        }
+
+        if ($this->hasRole($requester, RoleEnum::Cadre)) {
+            return ['services' => $requester->getServices()->toArray()];
+        }
+
+        if ($this->hasRole($requester, RoleEnum::Admin)) {
+            // CDC §3 : interdiction explicite, aucun accès aux déclarations.
+            throw new \RuntimeException('Un administrateur n\'a aucun accès aux déclarations (CDC §3).');
+        }
+
+        if ($this->hasRole($requester, RoleEnum::Soignant)) {
+            return ['declarant' => $requester];
+        }
+
+        throw new \RuntimeException('Rôle non autorisé à consulter les déclarations.');
+    }
+
+    private function hasRole(User $user, RoleEnum $role): bool
+    {
+        return in_array($role->value, $user->getRoles(), true);
     }
 }

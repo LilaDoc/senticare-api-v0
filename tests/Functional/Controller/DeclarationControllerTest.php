@@ -86,10 +86,4 @@ class DeclarationControllerTest extends ApiTestCase
         // CDC UC-05 : soumission uniquement par le déclarant, depuis le statut brouillon.
         self::markTestIncomplete('DeclarationController::submit() not implemented yet.');
     }
-
-    public function testSubmittingEigsDeclarationGeneratesRmmAutomatically(): void
-    {
-        // CDC §4.5 : fiche RMM auto-générée et non désactivable si isEIGS = true.
-        self::markTestIncomplete('DeclarationManager::submit() RMM auto-generation not implemented yet.');
-    }
 }

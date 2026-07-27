@@ -120,13 +120,6 @@ class Declaration
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $autresMesures = null;
 
-    /**
-     * Suggestion de RMM par le déclarant.
-     * Auto = true et verrouillé si isEIGS = true (CDC §4.3).
-     */
-    #[ORM\Column]
-    private bool $suggestionRMM = false;
-
     // -------------------------------------------------------------------------
     // Relations
     // -------------------------------------------------------------------------
@@ -138,9 +131,6 @@ class Declaration
     #[ORM\ManyToOne(inversedBy: 'declarations')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Service $service = null;
-
-    #[ORM\OneToOne(mappedBy: 'declaration', cascade: ['persist', 'remove'])]
-    private ?SuggestionRmm $ficheRMM = null;
 
     // -------------------------------------------------------------------------
     // Traçabilité
@@ -250,17 +240,11 @@ class Declaration
 
     /**
      * Définit la gravité ET recalcule isEIGS automatiquement (CDC §4.3).
-     * Met aussi à jour suggestionRMM si EIGS (auto-coché et verrouillé).
      */
     public function setGravite(GraviteEnum $gravite): static
     {
         $this->gravite  = $gravite;
         $this->isEIGS   = $gravite->isEIGS();
-
-        // Auto-cocher suggestionRMM si EIGS (CDC §4.3)
-        if ($this->isEIGS) {
-            $this->suggestionRMM = true;
-        }
 
         return $this;
     }
@@ -371,18 +355,6 @@ class Declaration
         return $this;
     }
 
-    public function isSuggestionRMM(): bool
-    {
-        return $this->suggestionRMM;
-    }
-
-    public function setSuggestionRMM(bool $suggestionRMM): static
-    {
-        $this->suggestionRMM = $suggestionRMM;
-
-        return $this;
-    }
-
     public function getDeclarant(): ?User
     {
         return $this->declarant;
@@ -405,11 +377,6 @@ class Declaration
         $this->service = $service;
 
         return $this;
-    }
-
-    public function getFicheRMM(): ?SuggestionRmm
-    {
-        return $this->ficheRMM;
     }
 
     public function getCreatedAt(): ?\DateTimeImmutable

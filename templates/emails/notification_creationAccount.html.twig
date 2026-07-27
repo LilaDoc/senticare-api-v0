@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+            color: #080708;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .header {
+            background-color: #5BC0EB;
+            color: #ffffff;
+            padding: 20px 30px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-top: 8px;
+            background-color: #70AE6E;
+        }
+
+        .content {
+            padding: 25px 30px;
+        }
+
+        .content p {
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        table.details {
+            width: 100%;
+            margin-top: 15px;
+            border-collapse: collapse;
+        }
+
+        table.details td {
+            padding: 8px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+        }
+
+        table.details td.label {
+            color: #7f8c8d;
+            width: 180px;
+        }
+
+        .credentials-box {
+            margin-top: 20px;
+            padding: 18px 20px;
+            background-color: #f4f6f8;
+            border-left: 4px solid #5BC0EB;
+            border-radius: 4px;
+        }
+
+        .credentials-box p {
+            margin: 6px 0;
+            font-size: 14px;
+        }
+
+        .credentials-box .field-label {
+            color: #7f8c8d;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .credentials-box .field-value {
+            font-family: 'Courier New', monospace;
+            font-size: 15px;
+            font-weight: 700;
+            color: #080708;
+            background-color: #ffffff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+
+        .warning {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background-color: #fdf1ea;
+            border-left: 4px solid #F4743B;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #7a3e1c;
+        }
+
+        .cta {
+            display: inline-block;
+            margin-top: 22px;
+            padding: 10px 20px;
+            background-color: #5BC0EB;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            font-size: 11px;
+            color: #95a5a6;
+            text-align: center;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Bienvenue sur SentiCare</h1>
+            <span class="badge">Compte créé</span>
+        </div>
+
+        <div class="content">
+            <p>
+                Bonjour {{ user.prenom }} {{ user.nom }},
+            </p>
+            <p>
+                Un compte SentiCare vient d'être créé pour vous par votre chef de pôle,
+                afin de vous permettre de déclarer et suivre les événements indésirables
+                de votre service.
+            </p>
+
+            <table class="details">
+                <tr>
+                    <td class="label">Service</td>
+                    <td>{{ service.nom }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Rôle</td>
+                    <td>{{ roleLabel }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Identifiant</td>
+                    <td>{{ user.email }}</td>
+                </tr>
+            </table>
+
+            <div class="credentials-box">
+                <div class="field-label">Mot de passe provisoire</div>
+                <span class="field-value">{{ temporaryPassword }}</span>
+            </div>
+
+            <div class="warning">
+                Ce mot de passe est temporaire. Il vous sera demandé de le modifier
+                dès votre première connexion, pour des raisons de sécurité.
+            </div>
+
+            <a href="{{ login_url }}" class="cta">Me connecter à SentiCare</a>
+        </div>
+
+        <div class="footer">
+            SentiCare — Cet email est généré automatiquement lors de la création de votre compte.
+            Si vous n'êtes pas à l'origine de cette demande, contactez votre chef de pôle.
+        </div>
+    </div>
+</body>
+</html>
