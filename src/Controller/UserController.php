@@ -158,13 +158,13 @@ class UserController extends AbstractController
     }
 
     #[Route('/{id}/deactivate', name: 'users_deactivate', methods: ['PATCH'])]
-    public function deactivate(string $id): JsonResponse
+    public function deactivate(string $id, #[CurrentUser] User $currentUser): JsonResponse
     {
         $user = $this->userRepository->find($id) ?? throw $this->createNotFoundException();
 
         $this->denyAccessUnlessGranted(UserVoter::DEACTIVATE, $user);
 
-        $this->userManager->deactivate($user);
+        $this->userManager->deactivate($user, $currentUser);
 
         return $this->json([
             'id' => (string) $user->getId(),
@@ -174,13 +174,13 @@ class UserController extends AbstractController
     }
 
     #[Route('/{id}/reactivate', name: 'users_reactivate', methods: ['PATCH'])]
-    public function reactivate(string $id): JsonResponse
+    public function reactivate(string $id, #[CurrentUser] User $currentUser): JsonResponse
     {
         $user = $this->userRepository->find($id) ?? throw $this->createNotFoundException();
 
         $this->denyAccessUnlessGranted(UserVoter::REACTIVATE, $user);
 
-        $this->userManager->reactivate($user);
+        $this->userManager->reactivate($user, $currentUser);
 
         return $this->json([
             'id' => (string) $user->getId(),

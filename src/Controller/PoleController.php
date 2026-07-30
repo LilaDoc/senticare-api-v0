@@ -75,7 +75,7 @@ class PoleController extends AbstractController
     }
 
     #[Route('/{id}', name: 'admin_poles_update', methods: ['PATCH'])]
-    public function update(string $id, Request $request): JsonResponse
+    public function update(string $id, Request $request, #[CurrentUser] User $admin): JsonResponse
     {
         $pole = $this->poleRepository->find($id) ?? throw $this->createNotFoundException();
 
@@ -86,7 +86,7 @@ class PoleController extends AbstractController
             return $this->json(['error' => 'Le champ "nom" est requis.'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        $pole = $this->poleManager->update($pole, $nom);
+        $pole = $this->poleManager->update($pole, $nom, $admin);
 
         return $this->json([
             'id' => (string) $pole->getId(),
@@ -95,11 +95,11 @@ class PoleController extends AbstractController
     }
 
     #[Route('/{id}/deactivate', name: 'admin_poles_deactivate', methods: ['PATCH'])]
-    public function deactivate(string $id): JsonResponse
+    public function deactivate(string $id, #[CurrentUser] User $admin): JsonResponse
     {
         $pole = $this->poleRepository->find($id) ?? throw $this->createNotFoundException();
 
-        $this->poleManager->deactivate($pole);
+        $this->poleManager->deactivate($pole, $admin);
 
         return $this->json([
             'id' => (string) $pole->getId(),

@@ -100,7 +100,7 @@ class ServiceController extends AbstractController
     }
 
     #[Route('/{id}', name: 'services_update', methods: ['PATCH'])]
-    public function update(string $id, Request $request): JsonResponse
+    public function update(string $id, Request $request, #[CurrentUser] User $currentUser): JsonResponse
     {
         $service = $this->serviceRepository->find($id) ?? throw $this->createNotFoundException();
 
@@ -119,7 +119,7 @@ class ServiceController extends AbstractController
             $pole = $this->poleRepository->find($poleId) ?? throw $this->createNotFoundException();
         }
 
-        $this->serviceManager->update($service, $nom, $pole);
+        $this->serviceManager->update($service, $nom, $currentUser, $pole);
 
         return $this->json([
             'id' => (string) $service->getId(),
@@ -129,13 +129,13 @@ class ServiceController extends AbstractController
     }
 
     #[Route('/{id}/deactivate', name: 'services_deactivate', methods: ['PATCH'])]
-    public function deactivate(string $id): JsonResponse
+    public function deactivate(string $id, #[CurrentUser] User $currentUser): JsonResponse
     {
         $service = $this->serviceRepository->find($id) ?? throw $this->createNotFoundException();
 
         $this->denyAccessUnlessGranted(ServiceVoter::DEACTIVATE, $service);
 
-        $this->serviceManager->deactivate($service);
+        $this->serviceManager->deactivate($service, $currentUser);
 
         return $this->json([
             'id' => (string) $service->getId(),

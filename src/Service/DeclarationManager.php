@@ -6,6 +6,7 @@ use App\Entity\Declaration;
 use App\Entity\Service as ServiceEntity;
 use App\Entity\User;
 use App\Enum\GraviteEnum;
+use App\Enum\LogTypeEnum;
 use App\Enum\RoleEnum;
 use App\Enum\StatutEnum;
 use App\Enum\TypeEIEnum;
@@ -21,6 +22,7 @@ class DeclarationManager
         private readonly EntityManagerInterface $entityManager,
         private readonly DeclarationRepository $declarationRepository,
         private readonly NotificationManager $notificationManager,
+        private readonly LogManager $logManager,
     ) {
     }
 
@@ -179,6 +181,12 @@ class DeclarationManager
         $this->notificationManager->notifySubmission($declaration);
 
         $this->entityManager->flush();
+
+        $this->logManager->log(
+            LogTypeEnum::DeclarationSubmitted,
+            $declaration->getDeclarant(),
+            sprintf('Déclaration %s soumise par %s', $declaration->getId(), $declaration->getDeclarant()->getEmail())
+        );
     }
 
     /**

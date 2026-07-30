@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Pole;
 use App\Entity\User;
+use App\Enum\LogTypeEnum;
 use App\Enum\RoleEnum;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +24,7 @@ class UserManager
         private readonly UserRepository $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly NotificationManager $notificationManager,
+        private readonly LogManager $logManager,
     ) {
     }
 
@@ -61,6 +63,12 @@ class UserManager
         $this->entityManager->flush();
 
         $this->notificationManager->notifyAccountCreated($newUser, $plainPassword);
+
+        $this->logManager->log(
+            LogTypeEnum::UserCreated,
+            $createdBy,
+            sprintf('Compte %s créé (rôle %s) par %s', $newUser->getEmail(), $role->label(), $createdBy->getEmail())
+        );
 
         return $newUser;
     }
@@ -113,22 +121,26 @@ class UserManager
     /**
      * Désactive un compte sans le supprimer — traçabilité conservée (CDC §5.1).
      */
-    public function deactivate(User $user): void
+    public function deactivate(User $user, User $actor): void
     {
         $user->setIsActive(false);
 
         $this->entityManager->flush();
+
+        $this->logManager->log(LogTypeEnum::UserDeactivated, $actor, sprintf('Compte %s désactivé par %s', $user->getEmail(), $actor->getEmail()));
     }
 
     /**
      * Réactive un compte désactivé — symétrique de deactivate() (CDC §5.1 :
      * une désactivation "sans suppression" doit pouvoir être annulée).
      */
-    public function reactivate(User $user): void
+    public function reactivate(User $user, User $actor): void
     {
         $user->setIsActive(true);
 
         $this->entityManager->flush();
+
+        $this->logManager->log(LogTypeEnum::UserReactivated, $actor, sprintf('Compte %s réactivé par %s', $user->getEmail(), $actor->getEmail()));
     }
 
     /**
