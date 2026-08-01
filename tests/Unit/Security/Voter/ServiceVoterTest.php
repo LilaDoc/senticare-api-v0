@@ -42,7 +42,7 @@ class ServiceVoterTest extends TestCase
         $user->setEmail(strtolower($role->name).'@test.fr');
         $user->setNom('Nom');
         $user->setPrenom('Prenom');
-        $user->setRoles([$role->value]);
+        $user->setRole($role);
         $user->setPassword('irrelevant-hash');
 
         foreach ($services as $service) {

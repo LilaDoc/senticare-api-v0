@@ -8,6 +8,7 @@ use App\Enum\TypeEIEnum;
 use App\Repository\DeclarationRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Déclaration d'un événement indésirable (EI).
@@ -95,8 +96,9 @@ class Declaration
     // Description (CDC §4.3)
     // -------------------------------------------------------------------------
 
-    /** Qu'avez-vous constaté ? Minimum 20 caractères. */
+    /** Qu'avez-vous constaté ? Minimum 20 caractères (CDC §4.3). */
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(min: 20, minMessage: 'Vous devez décrire ce qui a été constaté en au moins {{ limit }} caractères.')]
     private ?string $description = null;
 
     /** Y a-t-il des conséquences pour d'autres personnes ? */

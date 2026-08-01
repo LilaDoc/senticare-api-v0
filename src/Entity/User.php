@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\RoleEnum;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -54,12 +55,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     // -------------------------------------------------------------------------
 
     /**
-     * Stocké en JSON, ex: ["ROLE_SOIGNANT"].
-     * Symfony injecte toujours ROLE_USER en plus via getRoles().
+     * Un seul rôle métier par compte (CDC §3). getRoles() (imposée par
+     * UserInterface, qui doit renvoyer un tableau) construit le tableau à la
+     * volée à partir de cette valeur unique + ROLE_USER — voir plus bas.
      * La hiérarchie est configurée dans security.yaml.
      */
-    #[ORM\Column(type: 'json')]
-    private array $roles = [];
+    #[ORM\Column(enumType: RoleEnum::class)]
+    private ?RoleEnum $role = null;
 
     // -------------------------------------------------------------------------
     // État du compte
@@ -133,22 +135,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Symfony ajoute toujours ROLE_USER.
-     * La hiérarchie (ROLE_CHEF_POLE hérite de ROLE_CADRE, etc.) est dans security.yaml.
+     * UserInterface impose un tableau en sortie, indépendamment de notre
+     * règle métier "un seul rôle par compte" (CDC §3) — construit ici à la
+     * volée à partir de $role, jamais stocké tel quel. Symfony ajoute
+     * toujours ROLE_USER. La hiérarchie (ROLE_CHEF_POLE hérite de
+     * ROLE_CADRE, etc.) est dans security.yaml.
      *
      * @return list<string>
      */
     public function getRoles(): array
     {
-        $roles   = $this->roles;
-        $roles[] = 'ROLE_USER';
-
-        return array_unique($roles);
+        return array_unique([$this->role->value, 'ROLE_USER']);
     }
 
-    public function setRoles(array $roles): static
+    public function getRole(): ?RoleEnum
     {
-        $this->roles = $roles;
+        return $this->role;
+    }
+
+    public function setRole(RoleEnum $role): static
+    {
+        $this->role = $role;
 
         return $this;
     }

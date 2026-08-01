@@ -12,6 +12,7 @@ use App\Enum\StatutEnum;
 use App\Enum\TypeEIEnum;
 use App\Repository\DeclarationRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * Logique métier du cycle de vie d'une déclaration d'EI (CDC §4.2, §4.3, §4.4).
@@ -23,6 +24,7 @@ class DeclarationManager
         private readonly DeclarationRepository $declarationRepository,
         private readonly NotificationManager $notificationManager,
         private readonly LogManager $logManager,
+        private readonly ValidatorInterface $validator,
     ) {
     }
 
@@ -106,6 +108,12 @@ class DeclarationManager
         // calculerGravite() + Declaration::setGravite() — CDC §4.2) et service
         // (pré-rempli à la création, non ré-modifiable ici).
         if (array_key_exists('dateConstat', $changes)) {
+            // CDC §4.3 : même règle qu'à la création (createDraft()) — un
+            // brouillon modifié ne doit pas non plus pouvoir se retrouver
+            // avec une date de constat dans le futur.
+            if ($changes['dateConstat'] > new \DateTimeImmutable()) {
+                throw new \RuntimeException('La date de constat ne peut pas être dans le futur.');
+            }
             $declaration->setDateConstat($changes['dateConstat']);
         }
         if (array_key_exists('dateSurvenue', $changes)) {
@@ -121,6 +129,13 @@ class DeclarationManager
             $declaration->setTypeEI($changes['typeEI']);
         }
         if (array_key_exists('description', $changes)) {
+            // CDC §4.3 : minimum 20 caractères — contrainte déclarée sur
+            // Declaration::$description (#[Assert\Length]), validée ici sans
+            // avoir besoin d'une instance de Declaration entièrement valide.
+            $violations = $this->validator->validatePropertyValue(Declaration::class, 'description', $changes['description']);
+            if (count($violations) > 0) {
+                throw new \RuntimeException($violations[0]->getMessage());
+            }
             $declaration->setDescription($changes['description']);
         }
         if (array_key_exists('consequencesAutres', $changes)) {
@@ -140,6 +155,20 @@ class DeclarationManager
         }
         if (array_key_exists('autresMesures', $changes)) {
             $declaration->setAutresMesures($changes['autresMesures']);
+        }
+
+        // CDC §4.3 : trois champs texte "conditionnels si Oui" — vérifiés sur
+        // l'état final de l'entité (pas seulement sur $changes), pour rester
+        // cohérent même si le booléen a été mis à true lors d'un appel
+        // précédent et que seul le détail est fourni maintenant (ou l'inverse).
+        if ($declaration->isLieuDifferent() && !$declaration->getLieuDifferentDetail()) {
+            throw new \RuntimeException('Merci de préciser le lieu si celui-ci diffère du lieu de constat.');
+        }
+        if ($declaration->getConsequencesAutres() && !$declaration->getConsequencesAutresDetail()) {
+            throw new \RuntimeException('Merci de préciser les conséquences pour les autres personnes concernées.');
+        }
+        if ($declaration->getMesuresImmediatesPatient() && !$declaration->getMesuresImmediatesPatientDetail()) {
+            throw new \RuntimeException('Merci de préciser les mesures immédiates prises pour le patient.');
         }
 
         $this->entityManager->flush();

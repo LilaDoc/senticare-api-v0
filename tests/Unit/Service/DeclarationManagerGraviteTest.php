@@ -25,6 +25,7 @@ class DeclarationManagerGraviteTest extends TestCase
             $this->createStub(\App\Repository\DeclarationRepository::class),
             $this->createStub(\App\Service\NotificationManager::class),
             $this->createStub(\App\Service\LogManager::class),
+            $this->createStub(\Symfony\Component\Validator\Validator\ValidatorInterface::class),
         );
     }
 

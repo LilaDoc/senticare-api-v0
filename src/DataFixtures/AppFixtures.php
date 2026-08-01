@@ -30,7 +30,7 @@ class AppFixtures extends Fixture
         $users = [
             [
                 'email' => 'soignant@senticare.fr',
-                'roles' => [RoleEnum::Soignant->value],
+                'role' => RoleEnum::Soignant,
                 'nom' => 'Dupont',
                 'prenom' => 'Marie',
                 'isActive' => true,
@@ -39,7 +39,7 @@ class AppFixtures extends Fixture
             ],
             [
                 'email' => 'chefpole@senticare.fr',
-                'roles' => [RoleEnum::ChefPole->value],
+                'role' => RoleEnum::ChefPole,
                 'nom' => 'Martin',
                 'prenom' => 'Paul',
                 'isActive' => true,
@@ -48,7 +48,7 @@ class AppFixtures extends Fixture
             ],
             [
                 'email' => 'admin@senticare.fr',
-                'roles' => [RoleEnum::Admin->value],
+                'role' => RoleEnum::Admin,
                 'nom' => 'Admin',
                 'prenom' => 'System',
                 'isActive' => true,
@@ -57,7 +57,7 @@ class AppFixtures extends Fixture
             ],
             [
                 'email' => 'cadre@senticare.fr',
-                'roles' => [RoleEnum::Cadre->value],
+                'role' => RoleEnum::Cadre,
                 'nom' => 'Bernard',
                 'prenom' => 'Sophie',
                 'isActive' => true,
@@ -69,7 +69,7 @@ class AppFixtures extends Fixture
         foreach ($users as $data) {
             $user = new User();
             $user->setEmail($data['email']);
-            $user->setRoles($data['roles']);
+            $user->setRole($data['role']);
             $user->setNom($data['nom']);
             $user->setPrenom($data['prenom']);
             $user->setIsActive($data['isActive']);

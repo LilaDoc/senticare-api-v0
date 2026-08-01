@@ -12,22 +12,16 @@ use Doctrine\Persistence\ManagerRegistry;
 /**
  * @extends ServiceEntityRepository<User>
  */
-class UserRepository extends ServiceEntityRepository
+class UserRepository extends ServiceEntityRepository implements UserRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, User::class);
     }
 
-    public function findByEmail(string $email): array
+    public function findOneByEmail(string $email): ?User
     {
-        return $this->createQueryBuilder('u')
-            ->andWhere('u.email = :email')
-            ->setParameter('email', $email)
-            ->orderBy('u.id', 'ASC')
-            ->getQuery()
-            ->getResult()
-        ;
+        return $this->findOneBy(['email' => $email]);
     }
 
     /**
@@ -56,25 +50,24 @@ class UserRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('u')
             ->innerJoin('u.services', 's')
             ->andWhere('s = :service')
-            ->andWhere('u.roles LIKE :role')
+            ->andWhere('u.role = :role')
             ->setParameter('service', $service)
-            ->setParameter('role', '%"ROLE_CADRE"%')
+            ->setParameter('role', RoleEnum::Cadre)
             ->getQuery()
             ->getResult()
         ;
     }
+
     /**
-     * Comptes ayant le rôle donné. Les rôles sont stockés en JSON (ex:
-     * ["ROLE_CHEF_POLE"]) — pas d'opérateur JSON natif portable en DQL, on
-     * teste donc la présence de la valeur sérialisée dans la colonne texte.
+     * Comptes ayant le rôle donné.
      *
      * @return User[]
      */
     public function findByRole(RoleEnum $role): array
     {
         return $this->createQueryBuilder('u')
-            ->andWhere('u.roles LIKE :role')
-            ->setParameter('role', '%"'.$role->value.'"%')
+            ->andWhere('u.role = :role')
+            ->setParameter('role', $role)
             ->getQuery()
             ->getResult()
         ;

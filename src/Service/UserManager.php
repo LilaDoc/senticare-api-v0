@@ -6,7 +6,7 @@ use App\Entity\Pole;
 use App\Entity\User;
 use App\Enum\LogTypeEnum;
 use App\Enum\RoleEnum;
-use App\Repository\UserRepository;
+use App\Repository\UserRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -21,7 +21,7 @@ class UserManager
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly UserRepository $userRepository,
+        private readonly UserRepositoryInterface $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly NotificationManager $notificationManager,
         private readonly LogManager $logManager,
@@ -42,7 +42,7 @@ class UserManager
         User $createdBy,
         array $services = [],
     ): User {
-        if ($this->userRepository->findOneBy(['email' => $email])) {
+        if ($this->userRepository->findOneByEmail($email)) {
             throw new \RuntimeException('Un compte avec cet email existe déjà.');
         }
 
@@ -50,7 +50,7 @@ class UserManager
         $newUser->setEmail($email);
         $newUser->setNom($nom);
         $newUser->setPrenom($prenom);
-        $newUser->setRoles([$role->value]);
+        $newUser->setRole($role);
         $newUser->setCreatedBy($createdBy);
 
         foreach ($services as $service) {

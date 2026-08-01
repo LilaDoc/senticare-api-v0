@@ -7,7 +7,7 @@ use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\NotificationStatusEnum;
 use App\Enum\RoleEnum;
-use App\Repository\UserRepository;
+use App\Repository\UserRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -30,7 +30,7 @@ class NotificationManager
         private readonly MailerInterface $mailer,
         private readonly LoggerInterface $logger,
         private readonly EntityManagerInterface $entityManager,
-        private readonly UserRepository $userRepository,
+        private readonly UserRepositoryInterface $userRepository,
     ) {
     }
 

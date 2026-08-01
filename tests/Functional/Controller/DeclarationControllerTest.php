@@ -2,18 +2,15 @@
 
 namespace App\Tests\Functional\Controller;
 
+use App\Entity\Declaration;
+use App\Enum\GraviteEnum;
 use App\Enum\RoleEnum;
+use App\Enum\TypeEIEnum;
 use App\Tests\Functional\ApiTestCase;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * CDC UC-01 à UC-07. Deux catégories de tests ici :
- *  - les frontières d'accès (401/403) : elles passent déjà aujourd'hui, la
- *    sécurité (firewall JWT + #[IsGranted]) est en place indépendamment de
- *    l'implémentation métier.
- *  - le comportement métier (création, périmètre, cycle de vie) : ils
- *    resteront rouges tant que DeclarationController/DeclarationManager ne
- *    sont pas implémentés — normal en TDD.
+ * CDC UC-01 à UC-07.
  */
 class DeclarationControllerTest extends ApiTestCase
 {
@@ -63,27 +60,93 @@ class DeclarationControllerTest extends ApiTestCase
             '/api/declarations',
             server: ['CONTENT_TYPE' => 'application/json'],
             content: json_encode([
-                'serviceId' => (string) $service->getId(),
+                // Le contrôleur attend la clé "service", pas "serviceId".
+                'service' => (string) $service->getId(),
                 'typeEI' => 'chute',
                 'dateConstat' => (new \DateTimeImmutable())->format(DATE_ATOM),
                 'dateSurvenue' => (new \DateTimeImmutable('-1 hour'))->format(DATE_ATOM),
+                // Aucune des 3 questions EIGS positive -> choix manuel requis
+                // (DeclarationManager::calculerGravite(), CDC §4.2).
+                'choixSiNonEIGS' => 'mineur',
             ])
         );
 
-        // TODO: une fois implémenté, attendre 201 + vérifier que la déclaration
-        // créée a bien statut = brouillon (CDC §4.4) et declarant = $soignant.
-        self::markTestIncomplete('DeclarationController::create() not implemented yet.');
+        self::assertSame(Response::HTTP_CREATED, $this->client->getResponse()->getStatusCode());
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertSame('brouillon', $data['statut']['value']);
+        self::assertSame((string) $soignant->getId(), $data['declarant']['id']);
     }
 
     public function testDeclarationCreationFailsInTheFuture(): void
     {
         // CDC §4.3 : dateConstat ne peut pas être dans le futur.
-        self::markTestIncomplete('DeclarationController::create() validation not implemented yet.');
+        $pole = $this->createPole();
+        $service = $this->createService($pole);
+        $soignant = $this->createUser('soignant2@test.fr', RoleEnum::Soignant, [$service]);
+        $this->authenticateAs($soignant);
+
+        $this->client->request(
+            'POST',
+            '/api/declarations',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode([
+                'service' => (string) $service->getId(),
+                'typeEI' => 'chute',
+                'dateConstat' => (new \DateTimeImmutable('+1 day'))->format(DATE_ATOM),
+                'dateSurvenue' => (new \DateTimeImmutable('-1 hour'))->format(DATE_ATOM),
+                'choixSiNonEIGS' => 'mineur',
+            ])
+        );
+
+        self::assertSame(Response::HTTP_BAD_REQUEST, $this->client->getResponse()->getStatusCode());
     }
 
     public function testOnlyDeclarantCanSubmitOwnDraft(): void
     {
         // CDC UC-05 : soumission uniquement par le déclarant, depuis le statut brouillon.
-        self::markTestIncomplete('DeclarationController::submit() not implemented yet.');
+        $pole = $this->createPole();
+        $service = $this->createService($pole);
+        $declarant = $this->createUser('declarant@test.fr', RoleEnum::Soignant, [$service]);
+        $autreSoignant = $this->createUser('autre-soignant@test.fr', RoleEnum::Soignant, [$service]);
+
+        $declaration = new Declaration();
+        $declaration->setDeclarant($declarant);
+        $declaration->setService($service);
+        $declaration->setTypeEI(TypeEIEnum::Chute);
+        $declaration->setDateConstat(new \DateTimeImmutable('-1 day'));
+        $declaration->setDateSurvenue(new \DateTimeImmutable('-1 day'));
+        $declaration->setGravite(GraviteEnum::Mineur);
+        $this->entityManager->persist($declaration);
+        $this->entityManager->flush();
+        $declarationId = (string) $declaration->getId();
+
+        $this->authenticateAs($autreSoignant);
+        $this->client->request('POST', '/api/declarations/'.$declarationId.'/submit');
+        self::assertSame(Response::HTTP_FORBIDDEN, $this->client->getResponse()->getStatusCode());
+    }
+
+    public function testDeclarantCanSubmitOwnDraft(): void
+    {
+        $pole = $this->createPole();
+        $service = $this->createService($pole);
+        $declarant = $this->createUser('declarant2@test.fr', RoleEnum::Soignant, [$service]);
+
+        $declaration = new Declaration();
+        $declaration->setDeclarant($declarant);
+        $declaration->setService($service);
+        $declaration->setTypeEI(TypeEIEnum::Chute);
+        $declaration->setDateConstat(new \DateTimeImmutable('-1 day'));
+        $declaration->setDateSurvenue(new \DateTimeImmutable('-1 day'));
+        $declaration->setGravite(GraviteEnum::Mineur);
+        $this->entityManager->persist($declaration);
+        $this->entityManager->flush();
+        $declarationId = (string) $declaration->getId();
+
+        $this->authenticateAs($declarant);
+        $this->client->request('POST', '/api/declarations/'.$declarationId.'/submit');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('soumise', json_decode($this->client->getResponse()->getContent(), true)['statut']['value']);
     }
 }

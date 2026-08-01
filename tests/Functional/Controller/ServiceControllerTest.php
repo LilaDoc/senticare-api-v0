@@ -2,6 +2,7 @@
 
 namespace App\Tests\Functional\Controller;
 
+use App\Entity\Service;
 use App\Enum\RoleEnum;
 use App\Tests\Functional\ApiTestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,9 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Contrairement à PoleControllerTest, il n'y a pas de #[IsGranted('ROLE_...')]
  * au niveau classe ici (cf. docblock de ServiceController) : la protection de
  * périmètre vient entièrement de ServiceVoter, appelé à l'intérieur de chaque
- * méthode. Tant que list()/show()/create()/update() ne l'appellent pas encore,
- * ces routes sont temporairement ouvertes à tout utilisateur authentifié —
- * seul deactivate() est déjà protégé.
+ * méthode (list/show/create/update/deactivate).
  */
 class ServiceControllerTest extends ApiTestCase
 {
@@ -29,8 +28,6 @@ class ServiceControllerTest extends ApiTestCase
     public function testCadreCannotAccessServicesEndpoint(): void
     {
         // CDC UC-13 : seuls admin et chef de pôle gèrent les services — le cadre non.
-        // TODO: repasser cette assertion en HTTP_FORBIDDEN une fois
-        // ServiceController::list() appelle réellement ServiceVoter.
         $pole = $this->createPole();
         $service = $this->createService($pole);
         $cadre = $this->createUser('cadre@test.fr', RoleEnum::Cadre, [$service]);
@@ -38,7 +35,7 @@ class ServiceControllerTest extends ApiTestCase
 
         $this->client->request('GET', '/api/services');
 
-        self::markTestIncomplete('ServiceController::list() ne délègue pas encore à ServiceVoter — 403 attendu une fois fait.');
+        self::assertSame(Response::HTTP_FORBIDDEN, $this->client->getResponse()->getStatusCode());
     }
 
     public function testAdminCanCreateServiceAttachedToAPole(): void
@@ -54,9 +51,12 @@ class ServiceControllerTest extends ApiTestCase
             content: json_encode(['nom' => 'Néonatalogie', 'poleId' => (string) $pole->getId()])
         );
 
-        // TODO: une fois ServiceController::create() implémenté, attendre 201 +
-        // vérifier que le service créé référence bien $pole.
-        self::markTestIncomplete('ServiceController::create() not implemented yet.');
+        self::assertSame(Response::HTTP_CREATED, $this->client->getResponse()->getStatusCode());
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $service = $this->entityManager->getRepository(Service::class)->find($data['id']);
+
+        self::assertSame((string) $pole->getId(), (string) $service->getPole()->getId());
     }
 
     public function testChefPoleCanCreateServiceInHisOwnPole(): void
@@ -73,9 +73,7 @@ class ServiceControllerTest extends ApiTestCase
             content: json_encode(['nom' => 'Chirurgie ambulatoire', 'poleId' => (string) $pole->getId()])
         );
 
-        // TODO (UC-13) : une fois implémenté, attendre 201 — le chef de pôle
-        // crée bien dans SON pôle.
-        self::markTestIncomplete('ServiceController::create() not implemented yet.');
+        self::assertSame(Response::HTTP_CREATED, $this->client->getResponse()->getStatusCode());
     }
 
     public function testChefPoleCannotCreateServiceInAnotherPole(): void
@@ -94,9 +92,7 @@ class ServiceControllerTest extends ApiTestCase
             content: json_encode(['nom' => 'Hôpital de jour', 'poleId' => (string) $autrePole->getId()])
         );
 
-        // TODO (UC-13) : une fois ServiceController::create() implémenté et
-        // appelant ServiceVoter::CREATE, attendre HTTP_FORBIDDEN ici.
-        self::markTestIncomplete('ServiceController::create() not implemented yet.');
+        self::assertSame(Response::HTTP_FORBIDDEN, $this->client->getResponse()->getStatusCode());
     }
 
     public function testChefPoleCannotDeactivateServiceOfAnotherPole(): void

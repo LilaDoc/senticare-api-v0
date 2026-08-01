@@ -32,10 +32,18 @@ class DashboardControllerTest extends ApiTestCase
 
     public function testStatsNeverGroupByIndividualDeclarant(): void
     {
-        
         // Règle blameless impérative (CDC §2.1, §4.6) : jamais de classement par soignant.
-        // TODO: une fois StatsManager::aggregate() implémenté, vérifier que la clé
-        // "parDeclarant" / équivalent n'existe PAS dans la réponse JSON.
-        self::markTestIncomplete('DashboardController::stats() not implemented yet.');
+        $pole = $this->createPole();
+        $service = $this->createService($pole);
+        $cadre = $this->createUser('cadre@test.fr', RoleEnum::Cadre, [$service]);
+        $this->authenticateAs($cadre);
+
+        $this->client->request('GET', '/api/dashboard/stats');
+
+        self::assertResponseIsSuccessful();
+
+        $stats = json_decode($this->client->getResponse()->getContent(), true);
+
+        self::assertEqualsCanonicalizing(['parService', 'parType', 'parPeriode'], array_keys($stats));
     }
 }

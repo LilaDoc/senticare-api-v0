@@ -64,7 +64,7 @@ abstract class ApiTestCase extends WebTestCase
         $user->setEmail($email);
         $user->setNom('Nom');
         $user->setPrenom('Prenom');
-        $user->setRoles([$role->value]);
+        $user->setRole($role);
         $user->setPassword($hasher->hashPassword($user, 'Test1234!'));
 
         foreach ($services as $service) {

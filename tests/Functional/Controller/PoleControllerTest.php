@@ -2,6 +2,7 @@
 
 namespace App\Tests\Functional\Controller;
 
+use App\Entity\Pole;
 use App\Enum\RoleEnum;
 use App\Tests\Functional\ApiTestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -54,8 +55,12 @@ class PoleControllerTest extends ApiTestCase
             content: json_encode(['nom' => 'Pôle Maternité'])
         );
 
-        // TODO: une fois PoleController::create() implémenté, attendre 201 +
-        // vérifier en base que le pôle a été créé avec createdBy = $admin.
-        self::markTestIncomplete('PoleController::create() not implemented yet.');
+        self::assertSame(Response::HTTP_CREATED, $this->client->getResponse()->getStatusCode());
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $pole = $this->entityManager->getRepository(Pole::class)->find($data['id']);
+
+        self::assertSame('Pôle Maternité', $pole->getNom());
+        self::assertSame((string) $admin->getId(), (string) $pole->getCreatedBy()->getId());
     }
 }
