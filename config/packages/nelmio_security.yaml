@@ -1,0 +1,42 @@
+nelmio_security:
+    # prevents framing of the entire site
+    clickjacking:
+        paths:
+            '^/.*': DENY
+
+    # disables content type sniffing for script resources
+    content_type:
+        nosniff: true
+
+    # Send a full URL in the `Referer` header when performing a same-origin request,
+    # only send the origin of the document to secure destination (HTTPS->HTTPS),
+    # and send no header to a less secure destination (HTTPS->HTTP).
+    # If `strict-origin-when-cross-origin` is not supported, use `no-referrer` policy,
+    # no referrer information is sent along with requests.
+    referrer_policy:
+        enabled: true
+        policies:
+            - 'no-referrer'
+            - 'strict-origin-when-cross-origin'
+
+    # API JSON pure : aucune page HTML n'est servie par ce vhost, donc on interdit
+    # tout chargement de ressource (script/style/image/frame...). Si une route de
+    # rendu (ex: PDF) sert un jour du HTML, prévoir une politique dédiée sur cette
+    # route via `hosts`/`content_types` plutôt que d'assouplir la règle globale.
+    csp:
+        enabled: true
+        enforce:
+            default-src:
+                - 'none'
+            frame-ancestors:
+                - 'none'
+
+when@prod:
+    nelmio_security:
+        # HSTS n'a de sens qu'une fois HTTPS en place en prod (nginx, cf. CDC §7.3) ;
+        # en dev/test on reste en HTTP donc ce header serait sans effet réel et
+        # gênant en local.
+        forced_ssl:
+            enabled: true
+            hsts_max_age: 31536000
+            hsts_subdomains: true
