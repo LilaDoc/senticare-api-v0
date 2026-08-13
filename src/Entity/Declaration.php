@@ -31,6 +31,18 @@ class Declaration
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
     private ?Uuid $id = null;
 
+    /**
+     * Référence lisible (DCL-2026-0042), destinée à l'affichage et à l'échange
+     * humain : un UUID ne se dicte pas au téléphone et ne s'inscrit pas sur un
+     * compte rendu de revue.
+     *
+     * Ce n'est PAS un identifiant technique — aucune route ne l'accepte en
+     * paramètre, l'UUID reste seul à jouer ce rôle (CDC §6.2, anti-énumération).
+     * Générée à la création par ReferenceGenerator.
+     */
+    #[ORM\Column(length: 20, unique: true)]
+    private ?string $reference = null;
+
     // -------------------------------------------------------------------------
     // Dates (CDC §4.3)
     // -------------------------------------------------------------------------
@@ -173,6 +185,18 @@ class Declaration
     public function getId(): ?Uuid
     {
         return $this->id;
+    }
+
+    public function getReference(): ?string
+    {
+        return $this->reference;
+    }
+
+    public function setReference(string $reference): static
+    {
+        $this->reference = $reference;
+
+        return $this;
     }
 
     public function getDateConstat(): ?\DateTimeImmutable

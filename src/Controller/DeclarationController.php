@@ -292,6 +292,9 @@ class DeclarationController extends AbstractController
     {
         return [
             'id' => (string) $declaration->getId(),
+            // Référence lisible (DCL-2026-0042) : sert à l'affichage et à
+            // l'échange humain. L'identifiant technique reste l'UUID.
+            'reference' => $declaration->getReference(),
             'statut' => [
                 'value' => $declaration->getStatut()->value,
                 'label' => $declaration->getStatut()->label(),

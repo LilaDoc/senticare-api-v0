@@ -15,6 +15,7 @@ use App\Repository\DeclarationRepository;
 use App\Service\DeclarationManager;
 use App\Service\LogManager;
 use App\Service\NotificationManager;
+use App\Service\ReferenceGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Validator\Validation;
@@ -43,6 +44,10 @@ class DeclarationManagerTest extends TestCase
             // on veut vraiment exercer la contrainte #[Assert\Length] déclarée
             // sur Declaration::$description, pas la simuler.
             $validator ?? Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator(),
+            // Stub : la génération de référence s'appuie sur une séquence
+            // PostgreSQL, hors de portée d'un test unitaire. On vérifie
+            // seulement que le manager en pose une (cf. testCreateDraftAssignsReference).
+            $this->createConfiguredStub(ReferenceGenerator::class, ['generate' => 'DCL-2026-0001']),
         );
     }
 
@@ -100,6 +105,29 @@ class DeclarationManagerTest extends TestCase
         self::assertTrue($declaration->isEIGS());
         self::assertSame($declarant, $declaration->getDeclarant());
         self::assertSame($service, $declaration->getService());
+    }
+
+    public function testCreateDraftAssignsReference(): void
+    {
+        // La référence lisible (DCL-2026-0042) doit exister dès le brouillon :
+        // un soignant peut en parler à son cadre avant de soumettre.
+        $service = $this->createService();
+        $declarant = $this->createSoignant($service);
+        $manager = $this->createManager();
+
+        $declaration = $manager->createDraft(
+            $declarant,
+            $service,
+            TypeEIEnum::Chute,
+            new \DateTimeImmutable('-1 day'),
+            new \DateTimeImmutable('-2 days'),
+            deces: false,
+            pronosticVitalEnJeu: false,
+            risqueDeficitFonctionnelPermanent: false,
+            choixSiNonEIGS: GraviteEnum::Mineur,
+        );
+
+        self::assertSame('DCL-2026-0001', $declaration->getReference());
     }
 
     public function testCreateDraftThrowsIfDateConstatIsInFuture(): void

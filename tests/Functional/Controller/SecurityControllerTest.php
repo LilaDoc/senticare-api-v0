@@ -95,6 +95,66 @@ class SecurityControllerTest extends ApiTestCase
         self::assertContains('ROLE_SOIGNANT', $data['roles']);
     }
 
+    public function testMeReturnsServicesWithTheirPole(): void
+    {
+        // Le wizard de déclaration (CDC §4.3) pré-remplit le service depuis le
+        // profil, et POST /api/declarations n'accepte qu'un service auquel le
+        // déclarant est rattaché : sans cette liste, le formulaire est infaisable.
+        $pole = $this->createPole('Pôle Chirurgie');
+        $service = $this->createService($pole, 'Bloc opératoire');
+        $soignant = $this->createUser('soignant@test.fr', RoleEnum::Soignant, [$service]);
+        $this->authenticateAs($soignant);
+
+        $this->client->request('GET', '/api/me');
+
+        self::assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertSame((string) $soignant->getId(), $data['id']);
+        self::assertCount(1, $data['services']);
+        self::assertSame('Bloc opératoire', $data['services'][0]['nom']);
+        // Le pôle est joint ici parce qu'un chef de pôle en a besoin (poleId)
+        // pour créer un service, or /api/admin/poles lui est interdit.
+        self::assertSame((string) $pole->getId(), $data['services'][0]['pole']['id']);
+    }
+
+    public function testMeResolvesRoleHierarchyServerSide(): void
+    {
+        // CDC §3 : ROLE_CHEF_POLE > ROLE_CADRE > ROLE_SOIGNANT. getRoles() ne
+        // renvoie que le rôle brut ; l'héritage est résolu ici pour que le
+        // front n'ait pas à réimplémenter la hiérarchie de security.yaml.
+        $chefPole = $this->createUser('chef@test.fr', RoleEnum::ChefPole);
+        $this->authenticateAs($chefPole);
+
+        $this->client->request('GET', '/api/me');
+
+        self::assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertSame('ROLE_CHEF_POLE', $data['role']);
+        self::assertContains('ROLE_CHEF_POLE', $data['roles']);
+        self::assertContains('ROLE_CADRE', $data['roles']);
+        self::assertContains('ROLE_SOIGNANT', $data['roles']);
+    }
+
+    public function testMeDoesNotGrantInheritedRolesToAdmin(): void
+    {
+        // ROLE_ADMIN est orthogonal (CDC §3) : il n'hérite de rien et n'a aucun
+        // accès aux déclarations. Le front ne doit donc jamais lui proposer les
+        // écrans soignant/cadre.
+        $admin = $this->createUser('admin@test.fr', RoleEnum::Admin);
+        $this->authenticateAs($admin);
+
+        $this->client->request('GET', '/api/me');
+
+        self::assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertNotContains('ROLE_SOIGNANT', $data['roles']);
+        self::assertNotContains('ROLE_CADRE', $data['roles']);
+        self::assertSame([], $data['services']);
+    }
+
     public function testTokenRefreshReturnsNewTokenAndRotatesRefreshToken(): void
     {
         $this->createUser('soignant@test.fr', RoleEnum::Soignant);

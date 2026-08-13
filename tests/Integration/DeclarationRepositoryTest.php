@@ -68,6 +68,10 @@ class DeclarationRepositoryTest extends RepositoryIntegrationTestCase
         StatutEnum $statut = StatutEnum::Brouillon,
     ): Declaration {
         $declaration = new Declaration();
+        // `reference` est NOT NULL et unique : normalement posée par
+        // DeclarationManager::createDraft(), à fournir ici puisqu'on persiste
+        // l'entité directement.
+        $declaration->setReference('DCL-TEST-'.bin2hex(random_bytes(4)));
         $declaration->setDeclarant($declarant);
         $declaration->setService($service);
         $declaration->setTypeEI($typeEI);

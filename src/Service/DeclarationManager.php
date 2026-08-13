@@ -25,6 +25,7 @@ class DeclarationManager
         private readonly NotificationManager $notificationManager,
         private readonly LogManager $logManager,
         private readonly ValidatorInterface $validator,
+        private readonly ReferenceGenerator $referenceGenerator,
     ) {
     }
 
@@ -53,6 +54,10 @@ class DeclarationManager
         $gravite = $this->calculerGravite($deces, $pronosticVitalEnJeu, $risqueDeficitFonctionnelPermanent, $choixSiNonEIGS);
 
         $declaration = new Declaration();
+        // Référence lisible attribuée dès la création : elle doit exister même
+        // sur un brouillon, pour qu'un soignant puisse en parler à son cadre
+        // avant de l'avoir soumise.
+        $declaration->setReference($this->referenceGenerator->generate());
         $declaration->setDeclarant($declarant);
         $declaration->setService($service);
         $declaration->setTypeEI($typeEI);
