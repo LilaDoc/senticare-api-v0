@@ -39,30 +39,18 @@ final class Version20260805040000 extends AbstractMigration
         // de référence, on ne peut pas poser NOT NULL avant de les numéroter.
         $this->addSql('ALTER TABLE declaration ADD reference VARCHAR(20) DEFAULT NULL');
 
-        // Rattrapage de l'existant, dans l'ordre de création pour que la
-        // numérotation reste chronologique.
+        // Rattrapage des déclarations déjà en base : chacune consomme un numéro
+        // de la séquence créée ci-dessus. On réutilise donc exactement le même
+        // mécanisme que ReferenceGenerator, plutôt qu'un calcul parallèle.
+        //
+        // Effet de bord voulu : la séquence se retrouve calée toute seule après
+        // la dernière référence attribuée, sans avoir à la repositionner.
         $this->addSql(<<<'SQL'
-            UPDATE declaration AS d
+            UPDATE declaration
             SET reference = 'DCL-'
-                || to_char(numerotees.created_at, 'YYYY')
+                || to_char(created_at, 'YYYY')
                 || '-'
-                || lpad(numerotees.rang::text, 4, '0')
-            FROM (
-                SELECT id, created_at, row_number() OVER (ORDER BY created_at, id) AS rang
-                FROM declaration
-            ) AS numerotees
-            WHERE d.id = numerotees.id
-            SQL);
-
-        // Cale la séquence après les références attribuées ci-dessus.
-        // Le 3e argument `false` fait que le prochain nextval() renvoie
-        // exactement cette valeur, sans en sauter une.
-        $this->addSql(<<<'SQL'
-            SELECT setval(
-                'declaration_reference_seq',
-                (SELECT COUNT(*) FROM declaration) + 1,
-                false
-            )
+                || lpad(nextval('declaration_reference_seq')::text, 4, '0')
             SQL);
 
         $this->addSql('ALTER TABLE declaration ALTER reference SET NOT NULL');
