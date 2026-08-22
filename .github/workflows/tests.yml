@@ -14,7 +14,9 @@ name: Tests API
 
 on:
   push:
-    branches: [main, master]
+    # `dev` est la branche de travail de ce dépôt : l'omettre reviendrait à
+    # n'exécuter la CI qu'au moment de la fusion, c'est-à-dire trop tard.
+    branches: [main, master, dev]
   pull_request:
 
 jobs:
