@@ -1,0 +1,33 @@
+# Ce que la construction d'image ne doit PAS embarquer.
+#
+# ⚠️ Ces motifs s'appliquent à TOUS les `COPY`, y compris ceux qui nomment un
+#    fichier précis. Exclure `/docker/` ferait donc échouer le
+#    `COPY docker/php/entrypoint.sh` du Dockerfile.
+#
+# Sans ce fichier, `COPY . .` embarquerait ~25 Mo de cache, l'historique git
+# complet, et — plus grave — les fichiers .env.local et les clés privées JWT.
+
+# Dépendances : réinstallées dans l'image. Celles de l'hôte peuvent en outre
+# être compilées pour un autre système.
+/vendor/
+
+# Cache et journaux Symfony : régénérés au build (2 838 fichiers, ~25 Mo).
+/var/
+
+# Historique git : inutile à l'exécution, et volumineux.
+/.git/
+
+# ⚠️ Secrets. Les valeurs de production viennent des variables d'environnement
+# injectées par compose, jamais d'un fichier embarqué dans l'image.
+/.env.local
+/.env.*.local
+/config/jwt/*.pem
+
+# Outillage de développement, sans objet en production.
+/tests/
+/.phpunit.cache/
+/docs/
+/.github/
+
+# Le cahier des charges n'a rien à faire dans une image.
+/SentiCare_CDC_v4.3.md
