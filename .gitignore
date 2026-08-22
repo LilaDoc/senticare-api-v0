@@ -19,8 +19,12 @@
 /assets/vendor/
 ###< symfony/asset-mapper ###
 
-/SentiCare_CDC_v4.2.md
-/docs
+# Le cahier des charges reste hors dépôt (document de travail, exemplaire unique).
+/SentiCare_CDC_v4.3.md
+
+# `/docs` était ignoré : ROADMAP, fiches de révision et journal de décisions
+# n'avaient donc ni historique ni sauvegarde. Ce sont des livrables — ils sont
+# désormais versionnés.
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
