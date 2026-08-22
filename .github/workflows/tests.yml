@@ -1,0 +1,109 @@
+# =============================================================================
+# Intégration continue — API SentiCare
+# =============================================================================
+#
+# Rejoue à chaque poussée ce qui doit être vrai avant tout déploiement :
+# les dépendances s'installent, le schéma se construit depuis les migrations,
+# et les 146 tests passent.
+#
+# ⚠️ AUCUN secret GitHub n'est nécessaire. Voir l'étape « clés JWT » plus bas :
+#    la paire est générée à chaque exécution avec une passphrase aléatoire.
+#    Un secret qui n'existe pas ne peut pas fuiter.
+
+name: Tests API
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  phpunit:
+    name: PHPUnit sur PostgreSQL 16
+    runs-on: ubuntu-latest
+
+    # -------------------------------------------------------------------------
+    # Base de données
+    # -------------------------------------------------------------------------
+    # GitHub démarre ce conteneur à côté du job. Même version que la production
+    # (CDC §7.1) : tester sur SQLite donnerait une confiance trompeuse — les
+    # séquences natives et le typage JSON de PostgreSQL n'y existent pas.
+    services:
+      database:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: senticare
+          POSTGRES_PASSWORD: senticare
+          POSTGRES_DB: senticare
+        ports:
+          - 5432:5432
+        # Même rôle que le healthcheck de compose : le conteneur démarre en
+        # quelques millisecondes, PostgreSQL met plusieurs secondes à accepter
+        # des connexions. Sans ça, la première commande Doctrine échoue.
+        options: >-
+          --health-cmd "pg_isready -U senticare"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      APP_ENV: test
+      # Variable d'environnement RÉELLE : elle l'emporte sur tous les fichiers
+      # .env du dépôt (vérifié avec `debug:dotenv`).
+      #
+      # La base visée est `senticare`, mais Doctrine y ajoute le suffixe `_test`
+      # en environnement de test (config/packages/doctrine.yaml, when@test).
+      # C'est donc `senticare_test` qui sera créée à l'étape suivante.
+      DATABASE_URL: "postgresql://senticare:senticare@127.0.0.1:5432/senticare?serverVersion=16&charset=utf8"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          # Même extension que l'image Docker, pour la même raison : sans
+          # pdo_pgsql, Doctrine échoue sur « could not find driver ».
+          extensions: pdo_pgsql
+          # Pas de couverture de code : Xdebug ralentit la suite d'un facteur 2
+          # à 3, et aucun seuil de couverture n'est exigé sur ce projet.
+          coverage: none
+
+      # Pas de cache Composer : ~40 s d'installation, contre la complexité
+      # d'une clé de cache à maintenir. À ajouter si la suite s'allonge.
+      - name: Dépendances
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      # -------------------------------------------------------------------------
+      # Clés JWT — générées, jamais stockées
+      # -------------------------------------------------------------------------
+      # Les clés ne sont pas versionnées (.gitignore) : il faut donc les créer
+      # ici. La passphrase est tirée au hasard à chaque exécution.
+      #
+      # C'est PLUS sûr qu'un secret GitHub : les jetons signés pendant les tests
+      # sont vérifiés dans la même exécution, rien n'a besoin de survivre. Il n'y
+      # a donc aucune raison de faire persister une valeur sensible quelque part.
+      - name: Passphrase jetable
+        run: echo "JWT_PASSPHRASE=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - name: Paire de clés JWT
+        run: php bin/console lexik:jwt:generate-keypair --overwrite --no-interaction
+
+      # -------------------------------------------------------------------------
+      # Schéma
+      # -------------------------------------------------------------------------
+      # Par les MIGRATIONS et non par `doctrine:schema:create` : c'est ainsi que
+      # la base de production sera construite. Les migrations sont donc testées
+      # elles aussi — une migration cassée fait échouer la CI, pas le déploiement.
+      - name: Créer la base de test
+        run: php bin/console doctrine:database:create --if-not-exists --no-interaction
+
+      - name: Appliquer les migrations
+        run: php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+      # Aucune fixture : les tests construisent les données dont ils ont besoin,
+      # et DAMADoctrineTestBundle enveloppe chacun dans une transaction annulée
+      # à la fin. Chaque test repart d'une base propre sans rien recharger.
+      - name: Tests
+        run: php bin/phpunit
