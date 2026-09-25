@@ -37,7 +37,7 @@ Légende : `[x]` fait · `[ ]` à faire · `[b]` bloqué (précisé en commentai
 > était réservée à ROLE_ADMIN comme les pôles. Le CDC a été corrigé : le chef
 > de pôle gère désormais les services de **son propre pôle** (UC-13), l'admin
 > garde une supervision globale (tous pôles). Les pôles eux-mêmes restent
-> 100% admin. Voir `SentiCare_CDC_v4.3.md` §3/§4.1/US-1.2/US-1.3.
+> 100% admin. Voir `SentiCare_CDC_v4.5.md` §3/§4.1/US-1.2/US-1.3.
 
 ### PoleManager (`src/Service/PoleManager.php`) ✅ TERMINÉ
 - [x] `create(nom, createdBy): Pole`
@@ -141,7 +141,7 @@ Légende : `[x]` fait · `[ ]` à faire · `[b]` bloqué (précisé en commentai
 > historique, §4.5) est entièrement reportée en V2 — génération automatique,
 > suggestion manuelle ET consultation. Le périmètre V1 de cet axe s'arrête à
 > créer/modifier/abandonner/soumettre/lister/consulter une déclaration. Voir
-> `SentiCare_CDC_v4.3.md` §4.5/§9.2. Entité `SuggestionRmm`, `RmmController`,
+> `SentiCare_CDC_v4.5.md` §4.5/§9.2. Entité `SuggestionRmm`, `RmmController`,
 > `SuggestionRmmManager` et le champ `Declaration::suggestionRMM` supprimés du
 > code (migration `Version20260727041825`).
 

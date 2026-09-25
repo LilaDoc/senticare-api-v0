@@ -492,7 +492,7 @@ standard :
 
 **Variables d'environnement réelles**, injectées par le serveur ou le service de
 déploiement. Elles l'emportent toujours sur les fichiers `.env`. C'est la voie
-retenue pour OVHcloud.
+retenue pour le déploiement Azure.
 
 **Symfony Secrets** (`bin/console secrets:set`) — un coffre chiffré dont le
 contenu peut être versionné, la clé de déchiffrement restant hors du dépôt.

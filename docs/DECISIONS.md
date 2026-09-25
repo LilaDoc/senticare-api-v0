@@ -21,11 +21,12 @@ révisés.
 | [D-006](#d-006) | Sass + CSS Modules à la place de Tailwind | Août 2026 | ✅ Actée |
 | [D-007](#d-007) | Réduction du périmètre pour la soutenance | 11 août 2026 | ✅ Actée |
 | [D-008](#d-008) | Authentification JWT autonome | 22 août 2026 | ✅ Actée |
-| [D-009](#d-009) | Hébergeur choisi sur le critère HDS | 22 août 2026 | ✅ Actée |
+| [D-009](#d-009) | Hébergeur choisi sur le critère HDS | 22 août 2026 | 🔄 Critère maintenu, hébergeur révisé — D-014 |
 | [D-010](#d-010) | Trois dépôts, Dockerfile dans le dépôt applicatif | Août 2026 | ✅ Actée |
 | [D-011](#d-011) | Refus des dépendances non nécessaires | Août 2026 | ✅ Actée |
 | [D-012](#d-012) | Secrets sortis des fichiers versionnés | Août 2026 | ✅ Actée |
 | [D-013](#d-013) | TLS local reporté, validation prod partielle | 22 août 2026 | ⏸️ Reportée (optionnelle) |
+| [D-014](#d-014) | Retour à Azure après négociation | 28 août 2026 | ✅ Actée |
 
 ---
 
@@ -202,9 +203,12 @@ autonome est le défaut raisonnable.
 
 ## D-009
 
-### Hébergeur choisi sur le critère HDS
+### Hébergeur choisi sur le critère HDS — 🔄 hébergeur révisé
 
 **Date** — 22 août 2026 · CDC v4.3, §7.1 et §12.2 · remplace [D-002](#d-002)
+
+> Le **critère** posé ici — la certification HDS — reste la règle du projet. Seul
+> l'hébergeur retenu a changé : voir [D-014](#d-014).
 
 **Contexte** — Le CDC prévoyait Digital Ocean depuis la v3.0, retenu sur des
 critères de coût et de simplicité. La contrainte réglementaire n'avait pas été
@@ -231,8 +235,8 @@ une analyse d'impact (AIPD).
 nécessité **aucune modification applicative**, uniquement documentaire. C'est la
 portabilité annoncée par la conteneurisation, constatée en conditions réelles.
 
-> À vérifier avant remise : le périmètre exact de la certification d'OVHcloud sur
-> la liste officielle de l'Agence du Numérique en Santé (esante.gouv.fr).
+> Vérification reportée sur l'hébergeur effectivement retenu — voir
+> [D-014](#d-014).
 
 ---
 
@@ -373,5 +377,61 @@ plutôt que de laisser croire que tout est vérifié. »*
 
 ---
 
+## D-014
+
+### Retour à Azure après négociation
+
+**Date** — 28 août 2026 · CDC v4.4, §7.1 et §12.3 · révise [D-009](#d-009)
+
+**Contexte** — L'espace Azure de l'entreprise d'accueil avait été supprimé lors
+du virage low-code, ce qui avait fait tomber simultanément le fournisseur
+d'identité ([D-008](#d-008)) et la cible de déploiement ([D-009](#d-009)).
+
+**Ce qui a été fait** — Le maintien de l'environnement pour la durée du projet a
+été négocié avec le responsable de stage. Ce n'est pas une contrainte qui s'est
+levée d'elle-même : c'est une ressource obtenue en la demandant, après avoir
+identifié qu'elle bloquait un livrable.
+
+**Décision** — Cible de déploiement : **machine virtuelle Azure + base
+PostgreSQL managée**. Le critère de [D-009](#d-009) est respecté — Azure est
+certifié HDS.
+
+**Ce que la base managée change** — La sauvegarde des données passe à la charge
+de l'hébergeur. C'est une activité du référentiel HDS de moins à assumer, sur les
+trois qui restaient à l'exploitant avec un VPS auto-administré.
+
+> ⚠️ À vérifier avant remise : le nom exact de l'entité Microsoft certifiée HDS
+> et le périmètre d'activités couvert, sur la liste officielle de l'Agence du
+> Numérique en Santé (esante.gouv.fr). C'est la source qui fait foi —
+> l'affirmation « Azure est certifié HDS » n'a de valeur que vérifiée.
+
+**Réserve assumée** — Contrairement à OVHcloud, Azure est soumis au **Cloud
+Act**. La réserve est réelle et régulièrement soulevée par la CNIL pour les
+données de santé. Elle est acceptable ici : projet de formation, données
+fictives. Elle ne le serait pas mécaniquement en exploitation réelle —
+l'arbitrage reviendrait à l'établissement et à son DPO. La réserve est écrite au
+CDC plutôt que passée sous silence.
+
+**Ce que ça ne change pas** — L'authentification reste **JWT autonome**
+([D-008](#d-008)). Le retour de l'environnement Azure ne rouvre pas la question
+d'Entra ID : l'indépendance vis-à-vis d'un annuaire externe était recherchée pour
+elle-même, l'application devant rester déployable dans un établissement sans
+infrastructure Microsoft.
+
+**Ce que ça confirme** — La cible d'hébergement a changé **deux fois** en cours
+de projet (Digital Ocean → OVHcloud → Azure) sans qu'une seule ligne applicative
+soit modifiée. La portabilité annoncée par la conteneurisation n'est plus une
+promesse : elle a été éprouvée deux fois.
+
+**À dire tel quel** — *« L'espace Azure a été supprimé en cours de projet. J'en
+ai tiré une décision d'architecture : supprimer la dépendance à Microsoft pour
+l'authentification, et rendre le déploiement indépendant du fournisseur par la
+conteneurisation. J'ai ensuite négocié le maintien de l'environnement pour la
+durée du projet, et je déploie donc sur Azure — certifié HDS, avec la réserve du
+Cloud Act que j'assume et que j'ai documentée. Mais l'application n'en dépend
+plus : si l'accès disparaissait à nouveau, rien ne serait à réécrire. »*
+
+---
+
 *Journal tenu dans le cadre du projet de fin d'études CDA Niveau 6 — dernière
-mise à jour le 22 août 2026.*
+mise à jour le 28 août 2026.*
