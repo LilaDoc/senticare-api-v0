@@ -6,7 +6,6 @@ use App\Entity\Pole;
 use App\Entity\Service as ServiceEntity;
 use App\Entity\User;
 use App\Enum\LogTypeEnum;
-use App\Repository\ServiceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -19,7 +18,6 @@ class ServiceManager
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly ServiceRepository $serviceRepository,
         private readonly LogManager $logManager,
     ) {
     }

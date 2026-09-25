@@ -7,16 +7,15 @@ use App\Entity\Service as ServiceEntity;
 use App\Entity\User;
 use App\Enum\LogTypeEnum;
 use App\Enum\RoleEnum;
-use App\Repository\ServiceRepository;
 use App\Service\LogManager;
 use App\Service\ServiceManager;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Test unitaire (cf. 01_tests-2.md, niveau 1). Même constat que PoleManager :
- * ServiceRepository n'est jamais utilisé par ServiceManager (stub muet),
- * seuls EntityManagerInterface et LogManager sont doublés en Mock.
+ * Test unitaire (cf. 01_tests-2.md, niveau 1). Même situation que PoleManager :
+ * ServiceRepository était injecté sans jamais être utilisé — signalé par PHPStan
+ * et retiré. Restent EntityManagerInterface et LogManager, doublés en Mock.
  */
 class ServiceManagerTest extends TestCase
 {
@@ -47,7 +46,7 @@ class ServiceManagerTest extends TestCase
             ->method('log')
             ->with(LogTypeEnum::ServiceCreated, $admin, $this->stringContains('Bloc opératoire'));
 
-        $manager = new ServiceManager($entityManager, $this->createStub(ServiceRepository::class), $logManager);
+        $manager = new ServiceManager($entityManager, $logManager);
 
         $service = $manager->create('Bloc opératoire', $pole, $admin);
 
@@ -74,7 +73,7 @@ class ServiceManagerTest extends TestCase
             ->method('log')
             ->with(LogTypeEnum::ServiceUpdated, $actor, $this->stringContains('Nouveau nom'));
 
-        $manager = new ServiceManager($entityManager, $this->createStub(ServiceRepository::class), $logManager);
+        $manager = new ServiceManager($entityManager, $logManager);
 
         $updated = $manager->update($service, 'Nouveau nom', $actor);
 
@@ -96,7 +95,6 @@ class ServiceManagerTest extends TestCase
 
         $manager = new ServiceManager(
             $this->createStub(EntityManagerInterface::class),
-            $this->createStub(ServiceRepository::class),
             $this->createStub(LogManager::class),
         );
 
@@ -122,7 +120,7 @@ class ServiceManagerTest extends TestCase
             ->method('log')
             ->with(LogTypeEnum::ServiceDeactivated, $actor, $this->stringContains('Bloc opératoire'));
 
-        $manager = new ServiceManager($entityManager, $this->createStub(ServiceRepository::class), $logManager);
+        $manager = new ServiceManager($entityManager, $logManager);
 
         $manager->deactivate($service, $actor);
 

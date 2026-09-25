@@ -5,7 +5,6 @@ namespace App\Service;
 use App\Entity\Pole;
 use App\Entity\User;
 use App\Enum\LogTypeEnum;
-use App\Repository\PoleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -15,7 +14,6 @@ class PoleManager
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly PoleRepository $poleRepository,
         private readonly LogManager $logManager,
     ) {
     }

@@ -26,8 +26,9 @@
 # Outillage de développement, sans objet en production.
 /tests/
 /.phpunit.cache/
+/phpstan.neon
 /docs/
 /.github/
 
 # Le cahier des charges n'a rien à faire dans une image.
-/SentiCare_CDC_v4.3.md
+/SentiCare_CDC_v4.5.md

@@ -3,14 +3,14 @@
 # =============================================================================
 #
 # Rejoue à chaque poussée ce qui doit être vrai avant tout déploiement :
-# les dépendances s'installent, le schéma se construit depuis les migrations,
-# et les 146 tests passent.
+# les dépendances s'installent, l'analyse statique ne relève rien, le schéma se
+# construit depuis les migrations, et les 146 tests passent.
 #
 # ⚠️ AUCUN secret GitHub n'est nécessaire. Voir l'étape « clés JWT » plus bas :
 #    la paire est générée à chaque exécution avec une passphrase aléatoire.
 #    Un secret qui n'existe pas ne peut pas fuiter.
 
-name: Tests API
+name: Qualité et tests — API
 
 on:
   push:
@@ -20,8 +20,8 @@ on:
   pull_request:
 
 jobs:
-  phpunit:
-    name: PHPUnit sur PostgreSQL 16
+  qualite:
+    name: PHPStan + PHPUnit sur PostgreSQL 16
     runs-on: ubuntu-latest
 
     # -------------------------------------------------------------------------
@@ -76,6 +76,22 @@ jobs:
       # d'une clé de cache à maintenir. À ajouter si la suite s'allonge.
       - name: Dépendances
         run: composer install --prefer-dist --no-progress --no-interaction
+
+      # -------------------------------------------------------------------------
+      # Analyse statique
+      # -------------------------------------------------------------------------
+      # Placée AVANT la préparation de la base : PHPStan n'exécute pas le code,
+      # il n'a besoin ni de PostgreSQL ni des clés JWT. Une erreur de typage
+      # échoue donc en une cinquantaine de secondes au lieu d'attendre la fin de
+      # la suite de tests.
+      #
+      # Ce que PHPUnit ne voit pas : un service qui reçoit une dépendance
+      # inutilisée fonctionne parfaitement — aucun test ne peut le détecter.
+      # C'est ainsi que deux injections mortes ont été trouvées (PoleManager,
+      # ServiceManager). Le niveau et l'unique exclusion sont justifiés dans
+      # phpstan.neon.
+      - name: Analyse statique
+        run: vendor/bin/phpstan analyse --no-progress
 
       # -------------------------------------------------------------------------
       # Clés JWT — générées, jamais stockées

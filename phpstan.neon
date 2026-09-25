@@ -1,0 +1,63 @@
+# =============================================================================
+# Analyse statique — PHPStan
+# =============================================================================
+#
+#   vendor/bin/phpstan analyse
+#
+# Rôle : détecter sans exécuter le code ce que les tests ne couvrent pas —
+# appel de méthode sur une valeur potentiellement nulle, propriété inexistante,
+# type de retour incompatible, dépendance injectée mais jamais utilisée.
+#
+# C'est le pendant PHP de `tsc --strict` côté frontend : les deux vérifient des
+# types sans lancer l'application.
+
+parameters:
+
+    # -------------------------------------------------------------------------
+    # Niveau d'analyse
+    # -------------------------------------------------------------------------
+    # PHPStan gradue sa sévérité de 0 à 10. Le niveau 5 vérifie les types des
+    # arguments passés aux méthodes, les propriétés jamais lues et les types
+    # déclarés incohérents — c'est le palier à partir duquel l'outil trouve des
+    # défauts réels plutôt que des oublis de documentation.
+    #
+    # Le niveau 6 exige d'annoter le contenu de chaque tableau
+    # (`array<string, int>` plutôt que `array`) : 33 signalements, tous de la
+    # même nature documentaire, aucun défaut de comportement. Retenir 5 est un
+    # arbitrage assumé — la barre est placée là où elle attrape des bugs, pas
+    # là où elle occupe.
+    level: 5
+
+    paths:
+        - src
+        - tests
+
+    # `tests/bootstrap.php` est généré par la recette Symfony et n'est pas
+    # maintenu ici. Il contient un `method_exists(Dotenv::class, 'bootEnv')`
+    # de compatibilité avec des versions antérieures du framework : sur
+    # Symfony 7.4 la méthode existe toujours, PHPStan le signale à juste titre.
+    # Le principe retenu est de n'analyser que le code dont je suis l'autrice —
+    # même raison qui exclut `vendor/`.
+    excludePaths:
+        - tests/bootstrap.php
+
+    # -------------------------------------------------------------------------
+    # Exclusions justifiées
+    # -------------------------------------------------------------------------
+    # Une exclusion doit se défendre. Celle-ci est un faux positif, pas une
+    # erreur qu'on préfère ne pas voir.
+    ignoreErrors:
+
+        # Les entités déclarent `private ?Uuid $id = null` sans jamais assigner
+        # de Uuid : c'est Doctrine qui écrit la valeur, par réflexion, via le
+        # générateur déclaré en attribut (#[ORM\CustomIdGenerator]). PHPStan
+        # analyse sans exécuter — il ne voit aucune affectation et conclut que
+        # le type `Uuid` est superflu. Il l'est en apparence seulement :
+        # supprimer `?Uuid` casserait le mapping.
+        #
+        # Exclusion écrite ici, et bornée aux entités, plutôt que déportée dans
+        # un fichier `baseline` : un baseline masque en bloc et ne s'explique
+        # pas à la relecture.
+        -
+            identifier: property.unusedType
+            path: src/Entity/*.php
